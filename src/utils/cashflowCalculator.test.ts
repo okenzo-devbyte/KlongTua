@@ -5,7 +5,8 @@ import {
   calculateRollingProjection,
   getSafeDueDate,
   formatShortThaiDayMonth,
-  calculateCategoryDistribution
+  calculateCategoryDistribution,
+  calculatePortfolioDebtSummary
 } from './cashflowCalculator';
 import { LoanAccount, MonthlyPaymentRecord } from '../types/loan';
 
@@ -180,5 +181,19 @@ describe('Cashflow & Sub-installment Calculator', () => {
     expect(distribution.OTHER.amount).toBe(0);
     expect(distribution.OTHER.count).toBe(0);
     expect(Object.keys(distribution)).toHaveLength(5);
+  });
+
+  it('correctly calculates portfolio debt summary across all active loans', () => {
+    const portfolio = calculatePortfolioDebtSummary(sampleLoans);
+
+    // sampleLoans: loan-1 (principal 30000, rem 20000), loan-2 (principal 5000, rem 3000)
+    expect(portfolio.activeLoanCount).toBe(2);
+    expect(portfolio.totalPrincipalAllLoans).toBe(35000);
+    expect(portfolio.totalRemainingAllLoans).toBe(23000);
+    expect(portfolio.totalPaidOffAllLoans).toBe(12000); // 35000 - 23000
+    // payoff rate = 12000 / 35000 * 100 = 34.2857%
+    expect(portfolio.debtPayoffRate).toBeCloseTo(34.2857, 2);
+    // monthly commitment: sub-1 (1500) + sub-2 (2500) + sub-3 (1000) = 5000
+    expect(portfolio.monthlyCommitment).toBe(5000);
   });
 });

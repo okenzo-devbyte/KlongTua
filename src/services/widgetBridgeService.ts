@@ -23,6 +23,8 @@ export interface WidgetSnapshot {
   availableFunds: number;
   isSufficient: boolean;
   shortfallAmount: number;
+  totalRemainingDebt?: number;
+  totalPrincipalDebt?: number;
   tasks: Array<{
     id: string;
     loanId: string;

@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.view.View;
 import android.widget.RemoteViews;
 
@@ -76,6 +77,18 @@ public class DebtFlowWidgetProvider extends AppWidgetProvider {
     }
 
     @Override
+    public void onEnabled(Context context) {
+        super.onEnabled(context);
+        updateAllWidgets(context);
+    }
+
+    @Override
+    public void onAppWidgetOptionsChanged(Context context, AppWidgetManager appWidgetManager, int appWidgetId, Bundle newOptions) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions);
+        updateAppWidget(context, appWidgetManager, appWidgetId);
+    }
+
+    @Override
     public void onReceive(Context context, Intent intent) {
         if (ACTION_TOGGLE_TASK_PAID.equals(intent.getAction())) {
             String taskId = intent.getStringExtra(EXTRA_TASK_ID);
@@ -93,8 +106,14 @@ public class DebtFlowWidgetProvider extends AppWidgetProvider {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
         ComponentName componentName = new ComponentName(context, DebtFlowWidgetProvider.class);
         int[] widgetIds = manager.getAppWidgetIds(componentName);
-        for (int widgetId : widgetIds) {
-            updateAppWidget(context, manager, widgetId);
+        if (widgetIds != null && widgetIds.length > 0) {
+            for (int widgetId : widgetIds) {
+                updateAppWidget(context, manager, widgetId);
+            }
+            Intent updateIntent = new Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
+            updateIntent.setComponent(componentName);
+            updateIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, widgetIds);
+            context.sendBroadcast(updateIntent);
         }
     }
 
@@ -108,9 +127,11 @@ public class DebtFlowWidgetProvider extends AppWidgetProvider {
         views.setOnClickPendingIntent(R.id.tv_widget_title, openAppIntent);
 
         if (snapshotJson == null) {
+            views.setTextViewText(R.id.tv_widget_title, "คล่องตัว");
             views.setTextViewText(R.id.tv_widget_remaining, "฿0");
-            views.setTextViewText(R.id.tv_widget_status, "เปิดแอปเพื่อซิงก์ข้อมูล");
-            views.setTextViewText(R.id.tv_widget_month, "DebtFlow Enterprise");
+            views.setTextViewText(R.id.tv_widget_status, "แตะเพื่อเปิดแอป");
+            views.setTextViewText(R.id.tv_widget_month, "แตะเพื่อเปิดแอปและซิงก์ข้อมูล");
+            views.setTextViewText(R.id.tv_widget_empty, "แตะที่นี่เพื่อโหลดรายการค้างชำระจากแอป");
             views.setViewVisibility(R.id.tv_widget_empty, View.VISIBLE);
             for (int rowId : ROW_IDS) {
                 views.setViewVisibility(rowId, View.GONE);
@@ -123,12 +144,21 @@ public class DebtFlowWidgetProvider extends AppWidgetProvider {
             JSONObject snapshot = new JSONObject(snapshotJson);
             double remainingDue = snapshot.optDouble("totalRemainingDue", 0);
             double availableFunds = snapshot.optDouble("availableFunds", 0);
+            double totalRemainingDebt = snapshot.optDouble("totalRemainingDebt", -1);
             double shortfall = snapshot.optDouble("shortfallAmount", 0);
             boolean isSufficient = snapshot.optBoolean("isSufficient", true);
             String yearMonth = snapshot.optString("yearMonth", "");
 
+            views.setTextViewText(R.id.tv_widget_title, "คล่องตัว");
             views.setTextViewText(R.id.tv_widget_remaining, "฿" + formatMoney(remainingDue));
-            views.setTextViewText(R.id.tv_widget_month, formatThaiMonthYear(yearMonth) + " • เงินต้นพร้อมใช้ ฿" + formatMoney(availableFunds));
+
+            String subtext = formatThaiMonthYear(yearMonth);
+            if (totalRemainingDebt >= 0) {
+                subtext += " • หนี้คงเหลือรวม ฿" + formatMoney(totalRemainingDebt);
+            } else {
+                subtext += " • เงินต้นพร้อมใช้ ฿" + formatMoney(availableFunds);
+            }
+            views.setTextViewText(R.id.tv_widget_month, subtext);
 
             if (remainingDue <= 0) {
                 views.setTextViewText(R.id.tv_widget_status, "✓ ชำระครบแล้ว");
@@ -159,6 +189,7 @@ public class DebtFlowWidgetProvider extends AppWidgetProvider {
             }
 
             if (orderedTasks.length() == 0) {
+                views.setTextViewText(R.id.tv_widget_empty, "ไม่มีรายการค้างชำระในเดือนนี้ 🎉");
                 views.setViewVisibility(R.id.tv_widget_empty, View.VISIBLE);
                 for (int rowId : ROW_IDS) {
                     views.setViewVisibility(rowId, View.GONE);
@@ -170,7 +201,8 @@ public class DebtFlowWidgetProvider extends AppWidgetProvider {
                 }
             }
         } catch (JSONException exception) {
-            views.setTextViewText(R.id.tv_widget_remaining, "DebtFlow");
+            views.setTextViewText(R.id.tv_widget_title, "คล่องตัว");
+            views.setTextViewText(R.id.tv_widget_remaining, "฿0");
             views.setTextViewText(R.id.tv_widget_status, "ข้อมูลวิดเจ็ตไม่ถูกต้อง");
         }
 
@@ -281,7 +313,7 @@ public class DebtFlowWidgetProvider extends AppWidgetProvider {
             prefs.edit()
                 .putString(KEY_SNAPSHOT, snapshot.toString())
                 .putString(KEY_PENDING_TOGGLES, pendingToggles.toString())
-                .apply();
+                .commit();
         } catch (JSONException ignored) {
         }
     }

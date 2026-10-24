@@ -179,7 +179,19 @@ export interface ThaiVoiceConfig {
   };
 }
 
+export interface PortfolioDebtSummary {
+  totalPrincipalAllLoans: number;  // ยอดวงเงินกู้ตั้งต้นรวมทุกสัญญาที่ใช้งานอยู่
+  totalRemainingAllLoans: number;  // ยอดหนี้คงเหลือรวมทุกสัญญาปัจจุบัน
+  totalPaidOffAllLoans: number;    // ยอดเงินต้นที่ชำระลดลงไปแล้ว
+  debtPayoffRate: number;          // % ความคืบหน้าการปลดหนี้รวม (0-100)
+  activeLoanCount: number;         // จำนวนสัญญาที่ใช้งานอยู่
+  monthlyCommitment: number;       // ยอดภาระผ่อนรวมต่อเดือนของทุกสัญญา
+}
+
 export type DashboardDrillDownModal = 
+  | { type: 'TOTAL_DEBT'; summary: PortfolioDebtSummary; loans: LoanAccount[] }
+  | { type: 'AVAILABLE_FUNDS'; summary: CashflowSummary }
+  | { type: 'MONTHLY_TASKS'; filter: 'ALL' | 'PENDING' | 'PAID' | 'OVERDUE'; title: string; subtitle: string; tasks: MonthlyInstallmentTask[]; totalAmount: number }
   | { type: 'PROJECTION'; data: RollingProjectionMonth; tasks: MonthlyInstallmentTask[] }
   | { type: 'CATEGORY'; categoryKey: string; label: string; tasks: MonthlyInstallmentTask[]; totalAmount: number }
   | null;

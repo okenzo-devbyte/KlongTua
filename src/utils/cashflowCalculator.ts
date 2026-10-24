@@ -5,7 +5,8 @@ import {
   CashflowSummary, 
   RollingProjectionMonth,
   LenderInfo,
-  PaymentStatus
+  PaymentStatus,
+  PortfolioDebtSummary
 } from '../types/loan';
 import { LENDERS_CATALOG } from '../data/lenders';
 import { parseISO, format, isValid, differenceInCalendarDays, addMonths, startOfMonth } from 'date-fns';
@@ -307,6 +308,45 @@ export function formatCurrency(amount: number, includeDecimals: boolean = false)
   const parts = fixed.split('.');
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return parts.join('.');
+}
+
+/**
+ * คำนวณภาพรวมพอร์ตหนี้สินทั้งหมด (วงเงินกู้ตั้งต้นรวม, หนี้คงเหลือรวม, เงินต้นที่ชำระไปแล้ว และอัตราการปลดหนี้)
+ */
+export function calculatePortfolioDebtSummary(loans: LoanAccount[]): PortfolioDebtSummary {
+  const activeLoans = loans.filter(l => l.isActive);
+  let totalPrincipalAllLoans = 0;
+  let totalRemainingAllLoans = 0;
+  let monthlyCommitment = 0;
+
+  for (const loan of activeLoans) {
+    const loanPrincipal = Number.isFinite(loan.totalPrincipal) && loan.totalPrincipal > 0
+      ? loan.totalPrincipal
+      : (loan.remainingPrincipal || 0);
+    const loanRemaining = Number.isFinite(loan.remainingPrincipal) && loan.remainingPrincipal > 0
+      ? loan.remainingPrincipal
+      : 0;
+
+    totalPrincipalAllLoans += Math.max(loanPrincipal, loanRemaining);
+    totalRemainingAllLoans += loanRemaining;
+
+    const loanMonthly = loan.subItems.reduce((sum, s) => sum + (Number.isFinite(s.amount) ? s.amount : 0), 0);
+    monthlyCommitment += loanMonthly;
+  }
+
+  const totalPaidOffAllLoans = Math.max(0, totalPrincipalAllLoans - totalRemainingAllLoans);
+  const debtPayoffRate = totalPrincipalAllLoans > 0
+    ? Number(((totalPaidOffAllLoans / totalPrincipalAllLoans) * 100).toFixed(2))
+    : 0;
+
+  return {
+    totalPrincipalAllLoans,
+    totalRemainingAllLoans,
+    totalPaidOffAllLoans,
+    debtPayoffRate,
+    activeLoanCount: activeLoans.length,
+    monthlyCommitment,
+  };
 }
 
 export function formatThaiDateLong(dateStr: string): string {

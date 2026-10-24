@@ -4,7 +4,8 @@ import {
   CashflowSummary, 
   LoanAccount,
   MonthlyPaymentRecord,
-  PaymentStatus 
+  PaymentStatus,
+  PortfolioDebtSummary 
 } from '../types/loan';
 import { LenderIcon } from './LenderIcon';
 import { AdaptiveDetailSheet } from './AdaptiveDetailSheet';
@@ -45,6 +46,7 @@ import {
 interface TodoListViewProps {
   tasks: MonthlyInstallmentTask[];
   summary: CashflowSummary;
+  portfolioSummary?: PortfolioDebtSummary;
   loans: LoanAccount[];
   paymentRecords?: MonthlyPaymentRecord[];
   selectedYearMonth: string;
@@ -58,6 +60,7 @@ interface TodoListViewProps {
 export const TodoListView: React.FC<TodoListViewProps> = ({
   tasks,
   summary,
+  portfolioSummary,
   loans,
   paymentRecords = [],
   selectedYearMonth,
@@ -220,7 +223,35 @@ export const TodoListView: React.FC<TodoListViewProps> = ({
         </div>
       )}
 
-      {/* 2. Search & Filter Bar */}
+      {/* 2. Compact Minimalist Metrics Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div className="p-3 rounded-2xl bg-white/95 dark:bg-stone-900/90 border border-stone-200 dark:border-stone-800 shadow-xs text-center">
+          <span className="text-[10px] font-bold text-stone-400 dark:text-stone-500 block uppercase">ยอดรวมเดือนนี้</span>
+          <span className="text-sm font-extrabold font-num text-stone-900 dark:text-stone-100">
+            ฿{formatCurrency(summary.totalDue)}
+          </span>
+        </div>
+        <div className="p-3 rounded-2xl bg-white/95 dark:bg-stone-900/90 border border-stone-200 dark:border-stone-800 shadow-xs text-center">
+          <span className="text-[10px] font-bold text-stone-400 dark:text-stone-500 block uppercase">ชำระแล้ว ({summary.paidCount})</span>
+          <span className="text-sm font-extrabold font-num text-emerald-600 dark:text-emerald-400">
+            ฿{formatCurrency(summary.totalPaid)}
+          </span>
+        </div>
+        <div className="p-3 rounded-2xl bg-white/95 dark:bg-stone-900/90 border border-stone-200 dark:border-stone-800 shadow-xs text-center">
+          <span className="text-[10px] font-bold text-stone-400 dark:text-stone-500 block uppercase">ค้างชำระ ({summary.pendingCount})</span>
+          <span className="text-sm font-extrabold font-num text-amber-600 dark:text-amber-400">
+            ฿{formatCurrency(summary.totalRemaining)}
+          </span>
+        </div>
+        <div className="p-3 rounded-2xl bg-white/95 dark:bg-stone-900/90 border border-stone-200 dark:border-stone-800 shadow-xs text-center">
+          <span className="text-[10px] font-bold text-stone-400 dark:text-stone-500 block uppercase">หนี้คงเหลือรวม</span>
+          <span className="text-sm font-extrabold font-num text-stone-900 dark:text-stone-100">
+            ฿{formatCurrency(portfolioSummary ? portfolioSummary.totalRemainingAllLoans : summary.totalRemaining)}
+          </span>
+        </div>
+      </div>
+
+      {/* 3. Search & Filter Bar */}
       <div className="bg-white/95 dark:bg-stone-900/90 p-4 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-sm space-y-3 transition-colors">
         {/* Search Input */}
         <div className="relative">

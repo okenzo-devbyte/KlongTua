@@ -28,7 +28,7 @@ public class WidgetBridgePlugin extends Plugin {
 
         prefs().edit()
             .putString(DebtFlowWidgetProvider.KEY_SNAPSHOT, snapshot)
-            .apply();
+            .commit();
         DebtFlowWidgetProvider.updateAllWidgets(getContext());
         call.resolve();
     }

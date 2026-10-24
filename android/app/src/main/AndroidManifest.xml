@@ -22,7 +22,7 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name=".widget.DebtFlowWidgetProvider" android:exported="false">
+        <receiver android:name=".widget.DebtFlowWidgetProvider" android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.enterprise.debtflow.ACTION_TOGGLE_TASK_PAID" />

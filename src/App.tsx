@@ -22,7 +22,8 @@ import {
 import { 
   getMonthlyInstallmentTasks, 
   calculateMonthlySummary,
-  calculateRollingProjection
+  calculateRollingProjection,
+  calculatePortfolioDebtSummary
 } from './utils/cashflowCalculator';
 import { toggleSubItemPayment, saveWidgetSnapshot, syncPendingWidgetToggles } from './services/widgetBridgeService';
 import { checkShouldAutoLock, recordUserActivity } from './services/securityService';
@@ -39,7 +40,8 @@ import {
   ThaiPencilConfig, 
   ThaiVoiceConfig, 
   SecurityConfig, 
-  NavTabItem 
+  NavTabItem,
+  PortfolioDebtSummary 
 } from './types/loan';
 import { Navbar } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
@@ -147,6 +149,10 @@ export function App() {
   const rollingProjections = useMemo(
     () => calculateRollingProjection(loans, paymentRecords, availableFunds, selectedYearMonth, 6),
     [loans, paymentRecords, availableFunds, selectedYearMonth]
+  );
+  const portfolioSummary = useMemo(
+    () => calculatePortfolioDebtSummary(loans),
+    [loans]
   );
 
   const activeCustomTab = navTabs.find(tab => tab.isCustom && tab.id === currentTab);
@@ -282,6 +288,8 @@ export function App() {
       availableFunds: summary.availableFunds,
       isSufficient: summary.isSufficient,
       shortfallAmount: summary.shortfallAmount,
+      totalRemainingDebt: portfolioSummary.totalRemainingAllLoans,
+      totalPrincipalDebt: portfolioSummary.totalPrincipalAllLoans,
       tasks: tasks.map(t => ({
         id: t.id,
         loanId: t.loanId,
@@ -298,7 +306,7 @@ export function App() {
         isOverdue: t.status === 'OVERDUE',
       })),
     });
-  }, [summary, tasks, selectedYearMonth]);
+  }, [summary, tasks, selectedYearMonth, portfolioSummary]);
 
   // Toast Helpers - Single Floating Pill with 1.5s Auto-Fade
   const addToast = (type: ToastMessage['type'], title: string, message: string) => {
@@ -476,6 +484,7 @@ export function App() {
           <DashboardView
             tasks={tasks}
             summary={summary}
+            portfolioSummary={portfolioSummary}
             loans={loans}
             paymentRecords={paymentRecords}
             widgetConfig={widgetConfig}
@@ -496,6 +505,7 @@ export function App() {
           <TodoListView
             tasks={activeCustomTab ? customTabTasks : tasks}
             summary={activeCustomTab ? customTabSummary : summary}
+            portfolioSummary={portfolioSummary}
             loans={loans}
             paymentRecords={paymentRecords}
             selectedYearMonth={selectedYearMonth}
@@ -511,6 +521,7 @@ export function App() {
           <WidgetStudioView
             tasks={tasks}
             summary={summary}
+            portfolioSummary={portfolioSummary}
             config={widgetConfig}
             onToggleTask={handleToggleTask}
             onUpdateConfig={(cfg) => saveWidgetConfig(cfg)}
@@ -520,6 +531,7 @@ export function App() {
         {currentTab === 'loans' && (
           <LoanManagerView
             loans={loans}
+            portfolioSummary={portfolioSummary}
             onAddLoan={() => setEditingLoan(null)}
             onEditLoan={(loan) => setEditingLoan(loan)}
             onDeleteLoan={handleDeleteLoan}
