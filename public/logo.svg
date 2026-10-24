@@ -1,0 +1,224 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- 1. Deep Obsidian Luxury Canvas -->
+    <radialGradient id="obsidianBg" cx="50%" cy="38%" r="68%">
+      <stop offset="0%" stop-color="#1F293D" />
+      <stop offset="45%" stop-color="#111622" />
+      <stop offset="85%" stop-color="#090C12" />
+      <stop offset="100%" stop-color="#05070A" />
+    </radialGradient>
+
+    <!-- 2. Metallic 24K Royal Amber Gold Gradients -->
+    <linearGradient id="goldStem" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFBEB" />
+      <stop offset="15%" stop-color="#FDE047" />
+      <stop offset="42%" stop-color="#F59E0B" />
+      <stop offset="75%" stop-color="#D97706" />
+      <stop offset="100%" stop-color="#92400E" />
+    </linearGradient>
+
+    <linearGradient id="goldFlameMain" x1="10%" y1="100%" x2="90%" y2="0%">
+      <stop offset="0%" stop-color="#B45309" />
+      <stop offset="22%" stop-color="#D97706" />
+      <stop offset="48%" stop-color="#F59E0B" />
+      <stop offset="72%" stop-color="#FDE047" />
+      <stop offset="90%" stop-color="#FFFBEB" />
+      <stop offset="100%" stop-color="#FFFFFF" />
+    </linearGradient>
+
+    <linearGradient id="goldFlameInner" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF7ED" />
+      <stop offset="25%" stop-color="#FBBF24" />
+      <stop offset="60%" stop-color="#D97706" />
+      <stop offset="100%" stop-color="#78350F" />
+    </linearGradient>
+
+    <linearGradient id="goldBevel" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.8" />
+      <stop offset="50%" stop-color="#F59E0B" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.6" />
+    </linearGradient>
+
+    <!-- 3. Orbital Halo & Stippling Rings -->
+    <linearGradient id="haloRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047" stop-opacity="0.45" />
+      <stop offset="50%" stop-color="#F59E0B" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#D97706" stop-opacity="0.5" />
+    </linearGradient>
+
+    <radialGradient id="haloRadialGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.25" />
+      <stop offset="60%" stop-color="#D97706" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- 4. Dynamic Drop Shadows for 3D Elevation -->
+    <filter id="goldDropShadow" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000000" flood-opacity="0.75" />
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#B45309" flood-opacity="0.35" />
+    </filter>
+
+    <filter id="starGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- ================= 1. OBSIDIAN BASE CANVAS ================= -->
+  <rect width="512" height="512" rx="116" fill="url(#obsidianBg)" />
+
+  <!-- Subtle Rim Light Border -->
+  <rect width="510" height="510" x="1" y="1" rx="115" fill="none" stroke="url(#goldStem)" stroke-width="2" stroke-opacity="0.25" />
+
+  <!-- ================= 2. ORBITAL HALO & THAI PENCIL AURA ================= -->
+  <!-- Central Ambient Golden Glow -->
+  <circle cx="256" cy="256" r="210" fill="url(#haloRadialGlow)" />
+
+  <!-- Outer Orbital Dashed Ring -->
+  <circle cx="256" cy="256" r="198" fill="none" stroke="url(#haloRingGrad)" stroke-width="1.8" stroke-dasharray="5 7" opacity="0.4" />
+  <!-- Inner Concentric Halo Ring -->
+  <circle cx="256" cy="256" r="172" fill="none" stroke="url(#haloRingGrad)" stroke-width="1" stroke-dasharray="2 4" opacity="0.25" />
+
+  <!-- Thai Pencil Stippling Constellation Points -->
+  <circle cx="100" cy="180" r="1.5" fill="#FDE047" opacity="0.4" />
+  <circle cx="410" cy="190" r="1.5" fill="#FDE047" opacity="0.4" />
+  <circle cx="120" cy="340" r="1.5" fill="#FBBF24" opacity="0.35" />
+  <circle cx="395" cy="350" r="1.5" fill="#FBBF24" opacity="0.35" />
+
+  <!-- ================= 3. THE GOLDEN KANOK 'D' EMBLEM ================= -->
+  <g filter="url(#goldDropShadow)">
+    
+    <!-- A. Left Primary Pillar / Kanok Spine -->
+    <!-- Base Pillar -->
+    <path 
+      d="M142,142 C142,132 152,126 166,126 L190,126 C196,126 200,130 200,136 L200,376 C200,384 194,390 186,390 L162,390 C150,390 142,382 142,370 Z" 
+      fill="url(#goldStem)" 
+    />
+    <!-- Specular Highlight on Spine Edge -->
+    <path d="M150,136 L150,380" stroke="#FFFBEB" stroke-width="2.5" stroke-linecap="round" opacity="0.75" />
+    <!-- Thai Kanok Tail Spur Hook at Base of Spine -->
+    <path 
+      d="M142,370 C142,398 116,408 98,396 C88,390 94,374 108,374 C124,374 132,386 146,368 Z" 
+      fill="url(#goldStem)" 
+    />
+    <path d="M102,390 Q124,396 138,372" fill="none" stroke="#FFFBEB" stroke-width="1.8" stroke-linecap="round" opacity="0.8" />
+
+    <!-- Top Crown Finial Ornament -->
+    <path 
+      d="M142,146 C136,134 118,124 104,136 C96,144 108,154 118,150 C128,146 134,152 144,162 Z" 
+      fill="url(#goldStem)" 
+    />
+
+    <!-- B. The Majestic Kanok Flame & Cashflow Loop (The 'D' Arc) -->
+    <!-- Main Outer Curving Flame Body forming the 'D' and looping dynamically into Cashflow -->
+    <path 
+      d="M190,126 
+         C270,126 348,152 386,212
+         C418,262 414,324 374,364
+         C332,406 262,410 198,388
+         C190,385 186,378 188,370
+         C190,362 198,358 206,360
+         C256,378 312,374 346,338
+         C376,306 380,258 354,218
+         C324,172 262,152 196,152
+         L190,152 Z" 
+      fill="url(#goldFlameMain)" 
+    />
+
+    <!-- C. Traditional 3-Tier Kanok Flame Crest (ยอดเปลวเพลิงกนกสะบัดพริ้ว) at the Top-Right Peak -->
+    <!-- Tier 1: Apex Soaring Flame Tip pointing to victory & growth -->
+    <path 
+      d="M362,176 
+         C382,144 402,106 388,72
+         C384,62 374,66 372,74
+         C368,92 352,118 336,136
+         C330,142 334,152 342,154
+         C350,156 358,168 362,176 Z" 
+      fill="url(#goldFlameMain)" 
+    />
+    <!-- Golden Flame Ridge Line -->
+    <path d="M374,74 Q382,114 348,150" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" />
+
+    <!-- Tier 2: Secondary Graceful Curled Flame Tongue -->
+    <path 
+      d="M400,214 
+         C426,184 438,146 422,124
+         C416,116 408,122 410,130
+         C414,148 402,174 382,196 Z" 
+      fill="url(#goldStem)" 
+    />
+
+    <!-- Tier 3: Tertiary Flourish Hook -->
+    <path 
+      d="M414,272 
+         C438,252 446,224 436,206
+         C432,200 424,204 426,212
+         C430,226 420,246 404,262 Z" 
+      fill="url(#goldFlameMain)" 
+    />
+
+    <!-- D. Inner Cashflow Circulation Ring (ริบบิ้นหมุนเวียนสภาพคล่อง) -->
+    <path 
+      d="M200,206 
+         C248,206 294,220 318,252
+         C338,278 334,312 308,334
+         C284,354 246,356 206,346
+         L206,324
+         C236,332 266,330 284,314
+         C302,298 304,274 290,256
+         C272,232 238,222 200,222 Z" 
+      fill="url(#goldFlameInner)" 
+      opacity="0.95" 
+    />
+    <!-- Internal Fine Gold Pencil Guide Line -->
+    <path 
+      d="M204,214 C244,214 286,226 308,254 C326,276 324,304 302,322 C282,338 248,342 204,334" 
+      fill="none" 
+      stroke="#FEF08A" 
+      stroke-width="1.8" 
+      stroke-linecap="round" 
+      opacity="0.8" 
+    />
+
+    <!-- E. Core Wealth Diamond Node (จุดศูนย์รวมสภาพคล่อง) -->
+    <g transform="translate(252, 280)">
+      <!-- Diamond Glow -->
+      <circle cx="0" cy="0" r="14" fill="#F59E0B" fill-opacity="0.25" />
+      <!-- Radiant Diamond Core -->
+      <polygon points="0,-10 9,0 0,10 -9,0" fill="url(#goldFlameMain)" stroke="#FFFBEB" stroke-width="1.2" />
+      <circle cx="0" cy="0" r="2.5" fill="#FFFFFF" />
+    </g>
+
+  </g>
+
+  <!-- ================= 4. RADIANT 4-POINT APEX STAR (ประกายเพชรยอดกนก) ================= -->
+  <g transform="translate(388, 70)" filter="url(#starGlow)">
+    <!-- Aura Rays -->
+    <circle cx="0" cy="0" r="16" fill="#FDE047" fill-opacity="0.3" />
+    <!-- 4-Point Diamond Sparkle Star -->
+    <path 
+      d="M0,-24 Q0,0 -24,0 Q0,0 0,24 Q0,0 24,0 Q0,0 0,-24 Z" 
+      fill="#FFFFFF" 
+    />
+    <path 
+      d="M0,-16 Q0,0 -16,0 Q0,0 0,16 Q0,0 16,0 Q0,0 0,-16 Z" 
+      fill="#FEF08A" 
+    />
+    <!-- Center Pure White Hotspot -->
+    <circle cx="0" cy="0" r="3" fill="#FFFFFF" />
+  </g>
+
+  <!-- Micro Sparkle on Spine -->
+  <g transform="translate(142, 142)" filter="url(#starGlow)">
+    <path d="M0,-10 Q0,0 -10,0 Q0,0 0,10 Q0,0 10,0 Q0,0 0,-10 Z" fill="#FFFFFF" opacity="0.9" />
+    <circle cx="0" cy="0" r="1.5" fill="#FEF08A" />
+  </g>
+
+  <!-- Micro Sparkle on Cashflow Loop -->
+  <g transform="translate(348, 338)" filter="url(#starGlow)">
+    <path d="M0,-8 Q0,0 -8,0 Q0,0 0,8 Q0,0 8,0 Q0,0 0,-8 Z" fill="#FFFFFF" opacity="0.75" />
+  </g>
+</svg>

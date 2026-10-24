@@ -1,0 +1,344 @@
+package com.enterprise.debtflow.widget;
+
+import android.app.PendingIntent;
+import android.appwidget.AppWidgetManager;
+import android.appwidget.AppWidgetProvider;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.net.Uri;
+import android.os.Build;
+import android.view.View;
+import android.widget.RemoteViews;
+
+import com.enterprise.debtflow.MainActivity;
+import com.enterprise.debtflow.R;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
+
+public class DebtFlowWidgetProvider extends AppWidgetProvider {
+
+    public static final String ACTION_TOGGLE_TASK_PAID = "com.enterprise.debtflow.ACTION_TOGGLE_TASK_PAID";
+    public static final String EXTRA_TASK_ID = "extra_task_id";
+    public static final String PREFS_NAME = "DebtFlowWidgetPrefs";
+    public static final String KEY_SNAPSHOT = "debtflow_widget_snapshot_v1";
+    public static final String KEY_PENDING_TOGGLES = "debtflow_pending_toggles_v1";
+
+    private static final int[] ROW_IDS = {
+        R.id.widget_task_row_1,
+        R.id.widget_task_row_2,
+        R.id.widget_task_row_3,
+        R.id.widget_task_row_4,
+    };
+    private static final int[] CHECK_IDS = {
+        R.id.tv_widget_task_check_1,
+        R.id.tv_widget_task_check_2,
+        R.id.tv_widget_task_check_3,
+        R.id.tv_widget_task_check_4,
+    };
+    private static final int[] TITLE_IDS = {
+        R.id.tv_widget_task_title_1,
+        R.id.tv_widget_task_title_2,
+        R.id.tv_widget_task_title_3,
+        R.id.tv_widget_task_title_4,
+    };
+    private static final int[] SUBTITLE_IDS = {
+        R.id.tv_widget_task_subtitle_1,
+        R.id.tv_widget_task_subtitle_2,
+        R.id.tv_widget_task_subtitle_3,
+        R.id.tv_widget_task_subtitle_4,
+    };
+    private static final int[] AMOUNT_IDS = {
+        R.id.tv_widget_task_amount_1,
+        R.id.tv_widget_task_amount_2,
+        R.id.tv_widget_task_amount_3,
+        R.id.tv_widget_task_amount_4,
+    };
+
+    private static final String[] THAI_SHORT_MONTHS = {
+        "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+        "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+    };
+
+    @Override
+    public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
+        for (int appWidgetId : appWidgetIds) {
+            updateAppWidget(context, appWidgetManager, appWidgetId);
+        }
+    }
+
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        if (ACTION_TOGGLE_TASK_PAID.equals(intent.getAction())) {
+            String taskId = intent.getStringExtra(EXTRA_TASK_ID);
+            if (taskId != null) {
+                applyTaskToggle(context, taskId);
+                updateAllWidgets(context);
+            }
+            return;
+        }
+
+        super.onReceive(context, intent);
+    }
+
+    public static void updateAllWidgets(Context context) {
+        AppWidgetManager manager = AppWidgetManager.getInstance(context);
+        ComponentName componentName = new ComponentName(context, DebtFlowWidgetProvider.class);
+        int[] widgetIds = manager.getAppWidgetIds(componentName);
+        for (int widgetId : widgetIds) {
+            updateAppWidget(context, manager, widgetId);
+        }
+    }
+
+    public static void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
+        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_debtflow);
+        SharedPreferences prefs = prefs(context);
+        String snapshotJson = prefs.getString(KEY_SNAPSHOT, null);
+
+        PendingIntent openAppIntent = createOpenAppIntent(context);
+        views.setOnClickPendingIntent(R.id.widget_root, openAppIntent);
+        views.setOnClickPendingIntent(R.id.tv_widget_title, openAppIntent);
+
+        if (snapshotJson == null) {
+            views.setTextViewText(R.id.tv_widget_remaining, "฿0");
+            views.setTextViewText(R.id.tv_widget_status, "เปิดแอปเพื่อซิงก์ข้อมูล");
+            views.setTextViewText(R.id.tv_widget_month, "DebtFlow Enterprise");
+            views.setViewVisibility(R.id.tv_widget_empty, View.VISIBLE);
+            for (int rowId : ROW_IDS) {
+                views.setViewVisibility(rowId, View.GONE);
+            }
+            appWidgetManager.updateAppWidget(appWidgetId, views);
+            return;
+        }
+
+        try {
+            JSONObject snapshot = new JSONObject(snapshotJson);
+            double remainingDue = snapshot.optDouble("totalRemainingDue", 0);
+            double availableFunds = snapshot.optDouble("availableFunds", 0);
+            double shortfall = snapshot.optDouble("shortfallAmount", 0);
+            boolean isSufficient = snapshot.optBoolean("isSufficient", true);
+            String yearMonth = snapshot.optString("yearMonth", "");
+
+            views.setTextViewText(R.id.tv_widget_remaining, "฿" + formatMoney(remainingDue));
+            views.setTextViewText(R.id.tv_widget_month, formatThaiMonthYear(yearMonth) + " • เงินต้นพร้อมใช้ ฿" + formatMoney(availableFunds));
+
+            if (remainingDue <= 0) {
+                views.setTextViewText(R.id.tv_widget_status, "✓ ชำระครบแล้ว");
+                views.setTextColor(R.id.tv_widget_status, 0xFF059669);
+            } else if (isSufficient) {
+                views.setTextViewText(R.id.tv_widget_status, "✓ เงินต้นเพียงพอ");
+                views.setTextColor(R.id.tv_widget_status, 0xFF059669);
+            } else {
+                views.setTextViewText(R.id.tv_widget_status, "⚠ ต้องหาเพิ่ม ฿" + formatMoney(shortfall));
+                views.setTextColor(R.id.tv_widget_status, 0xFFE11D48);
+            }
+
+            JSONArray tasks = snapshot.optJSONArray("tasks");
+            JSONArray orderedTasks = new JSONArray();
+            if (tasks != null) {
+                for (int i = 0; i < tasks.length(); i++) {
+                    JSONObject task = tasks.optJSONObject(i);
+                    if (task != null && !task.optBoolean("isPaid", false)) {
+                        orderedTasks.put(task);
+                    }
+                }
+                for (int i = 0; i < tasks.length(); i++) {
+                    JSONObject task = tasks.optJSONObject(i);
+                    if (task != null && task.optBoolean("isPaid", false)) {
+                        orderedTasks.put(task);
+                    }
+                }
+            }
+
+            if (orderedTasks.length() == 0) {
+                views.setViewVisibility(R.id.tv_widget_empty, View.VISIBLE);
+                for (int rowId : ROW_IDS) {
+                    views.setViewVisibility(rowId, View.GONE);
+                }
+            } else {
+                views.setViewVisibility(R.id.tv_widget_empty, View.GONE);
+                for (int i = 0; i < ROW_IDS.length; i++) {
+                    bindTaskRow(views, context, appWidgetId, orderedTasks.optJSONObject(i), i);
+                }
+            }
+        } catch (JSONException exception) {
+            views.setTextViewText(R.id.tv_widget_remaining, "DebtFlow");
+            views.setTextViewText(R.id.tv_widget_status, "ข้อมูลวิดเจ็ตไม่ถูกต้อง");
+        }
+
+        appWidgetManager.updateAppWidget(appWidgetId, views);
+    }
+
+    private static void bindTaskRow(
+        RemoteViews views,
+        Context context,
+        int appWidgetId,
+        JSONObject task,
+        int index
+    ) {
+        int rowId = ROW_IDS[index];
+
+        if (task == null) {
+            views.setViewVisibility(rowId, View.GONE);
+            return;
+        }
+
+        String taskId = task.optString("id", "");
+        String loanTitle = task.optString("loanTitle", "");
+        String subTitle = task.optString("subTitle", "");
+        String dueDate = formatThaiDayMonth(task.optString("dueDateFormatted", task.optString("dueDate", "")));
+        boolean isPaid = task.optBoolean("isPaid", false);
+        boolean isOverdue = task.optBoolean("isOverdue", false);
+        double amount = task.optDouble("amount", 0);
+
+        views.setViewVisibility(rowId, View.VISIBLE);
+        views.setTextViewText(CHECK_IDS[index], isPaid ? "✓" : "○");
+        views.setTextColor(CHECK_IDS[index], isPaid ? 0xFF059669 : 0xFF94A3B8);
+        views.setTextViewText(TITLE_IDS[index], loanTitle);
+        views.setTextColor(TITLE_IDS[index], isPaid ? 0xFF94A3B8 : 0xFF0F172A);
+
+        String statusSuffix = isPaid ? " • ชำระแล้ว" : (isOverdue ? " • เลยกำหนด" : "");
+        views.setTextViewText(SUBTITLE_IDS[index], subTitle + " • " + dueDate + statusSuffix);
+        views.setTextViewText(AMOUNT_IDS[index], "฿" + formatMoney(amount));
+        views.setTextColor(AMOUNT_IDS[index], isPaid ? 0xFF94A3B8 : 0xFF0F172A);
+
+        Intent toggleIntent = new Intent(context, DebtFlowWidgetProvider.class);
+        toggleIntent.setAction(ACTION_TOGGLE_TASK_PAID);
+        toggleIntent.putExtra(EXTRA_TASK_ID, taskId);
+        toggleIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
+        toggleIntent.setData(Uri.parse("debtflow://widget/" + appWidgetId + "/" + taskId));
+
+        int requestCode = (appWidgetId * 100) + index;
+        PendingIntent togglePendingIntent = PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            toggleIntent,
+            pendingIntentFlags()
+        );
+        views.setOnClickPendingIntent(rowId, togglePendingIntent);
+    }
+
+    private static void applyTaskToggle(Context context, String taskId) {
+        SharedPreferences prefs = prefs(context);
+        String snapshotJson = prefs.getString(KEY_SNAPSHOT, null);
+        if (snapshotJson == null) return;
+
+        try {
+            JSONObject snapshot = new JSONObject(snapshotJson);
+            JSONArray tasks = snapshot.optJSONArray("tasks");
+            if (tasks == null) return;
+
+            JSONObject target = null;
+            for (int i = 0; i < tasks.length(); i++) {
+                JSONObject task = tasks.optJSONObject(i);
+                if (task != null && taskId.equals(task.optString("id", ""))) {
+                    target = task;
+                    break;
+                }
+            }
+            if (target == null) return;
+
+            boolean desiredPaid = !target.optBoolean("isPaid", false);
+            target.put("isPaid", desiredPaid);
+            if (desiredPaid) {
+                target.put("isOverdue", false);
+            }
+
+            double totalRemaining = 0;
+            for (int i = 0; i < tasks.length(); i++) {
+                JSONObject task = tasks.optJSONObject(i);
+                if (task != null && !task.optBoolean("isPaid", false)) {
+                    totalRemaining += task.optDouble("amount", 0);
+                }
+            }
+
+            double availableFunds = snapshot.optDouble("availableFunds", 0);
+            boolean isSufficient = availableFunds >= totalRemaining;
+            snapshot.put("totalRemainingDue", totalRemaining);
+            snapshot.put("isSufficient", isSufficient);
+            snapshot.put("shortfallAmount", isSufficient ? 0 : totalRemaining - availableFunds);
+            snapshot.put("updatedAt", nowIso());
+
+            JSONArray pendingToggles;
+            try {
+                pendingToggles = new JSONArray(prefs.getString(KEY_PENDING_TOGGLES, "[]"));
+            } catch (JSONException exception) {
+                pendingToggles = new JSONArray();
+            }
+            JSONObject pendingToggle = new JSONObject();
+            pendingToggle.put("taskId", taskId);
+            pendingToggle.put("isPaid", desiredPaid);
+            pendingToggles.put(pendingToggle);
+
+            prefs.edit()
+                .putString(KEY_SNAPSHOT, snapshot.toString())
+                .putString(KEY_PENDING_TOGGLES, pendingToggles.toString())
+                .apply();
+        } catch (JSONException ignored) {
+        }
+    }
+
+    private static SharedPreferences prefs(Context context) {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+    }
+
+    private static PendingIntent createOpenAppIntent(Context context) {
+        Intent launchIntent = new Intent(context, MainActivity.class);
+        launchIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        return PendingIntent.getActivity(context, 2001, launchIntent, pendingIntentFlags());
+    }
+
+    private static int pendingIntentFlags() {
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            flags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+        return flags;
+    }
+
+    private static String formatMoney(double amount) {
+        return String.format(Locale.US, "%,.0f", amount);
+    }
+
+    private static String formatThaiMonthYear(String yearMonth) {
+        String[] parts = (yearMonth == null ? "" : yearMonth).split("-");
+        if (parts.length < 2) return yearMonth;
+
+        try {
+            int year = Integer.parseInt(parts[0]);
+            int month = Integer.parseInt(parts[1]);
+            if (month < 1 || month > 12) return yearMonth;
+            return THAI_SHORT_MONTHS[month - 1] + " " + (year + 543);
+        } catch (NumberFormatException exception) {
+            return yearMonth;
+        }
+    }
+
+    private static String formatThaiDayMonth(String dateStr) {
+        String[] parts = (dateStr == null ? "" : dateStr).split("-");
+        if (parts.length < 3) return dateStr;
+
+        try {
+            int month = Integer.parseInt(parts[1]);
+            int day = Integer.parseInt(parts[2]);
+            if (month < 1 || month > 12) return dateStr;
+            return day + " " + THAI_SHORT_MONTHS[month - 1];
+        } catch (NumberFormatException exception) {
+            return dateStr;
+        }
+    }
+
+    private static String nowIso() {
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+        formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return formatter.format(new Date());
+    }
+}

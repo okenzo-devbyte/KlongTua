@@ -1,0 +1,192 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Scaled & Centered into Android Adaptive Safe Area (66-72dp zone) -->
+    <group
+        android:scaleX="0.155"
+        android:scaleY="0.155"
+        android:translateX="14.3"
+        android:translateY="14.3">
+
+        <!-- A. Left Primary Pillar / Kanok Spine -->
+        <path
+            android:pathData="M142,142 C142,132 152,126 166,126 L190,126 C196,126 200,130 200,136 L200,376 C200,384 194,390 186,390 L162,390 C150,390 142,382 142,370 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="142"
+                    android:startY="126"
+                    android:endX="200"
+                    android:endY="390"
+                    android:type="linear">
+                    <item android:color="#FFFFFBEB" android:offset="0.0" />
+                    <item android:color="#FFFDE047" android:offset="0.18" />
+                    <item android:color="#FFF59E0B" android:offset="0.45" />
+                    <item android:color="#FFD97706" android:offset="0.75" />
+                    <item android:color="#FF92400E" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- Spine Highlight -->
+        <path
+            android:pathData="M150,136 L150,380"
+            android:strokeColor="#BFFFFBEB"
+            android:strokeWidth="2.5"
+            android:strokeLineCap="round" />
+
+        <!-- Kanok Tail Spur at Base -->
+        <path
+            android:pathData="M142,370 C142,398 116,408 98,396 C88,390 94,374 108,374 C124,374 132,386 146,368 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="98"
+                    android:startY="370"
+                    android:endX="146"
+                    android:endY="408"
+                    android:type="linear">
+                    <item android:color="#FFF59E0B" android:offset="0.0" />
+                    <item android:color="#FFD97706" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- Top Crown Finial -->
+        <path
+            android:pathData="M142,146 C136,134 118,124 104,136 C96,144 108,154 118,150 C128,146 134,152 144,162 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="96"
+                    android:startY="124"
+                    android:endX="144"
+                    android:endY="162"
+                    android:type="linear">
+                    <item android:color="#FFFDE047" android:offset="0.0" />
+                    <item android:color="#FFD97706" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- B. The Majestic Kanok Flame & Cashflow Loop (The 'D' Arc) -->
+        <path
+            android:pathData="M190,126 C270,126 348,152 386,212 C418,262 414,324 374,364 C332,406 262,410 198,388 C190,385 186,378 188,370 C190,362 198,358 206,360 C256,378 312,374 346,338 C376,306 380,258 354,218 C324,172 262,152 196,152 L190,152 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="190"
+                    android:startY="388"
+                    android:endX="414"
+                    android:endY="126"
+                    android:type="linear">
+                    <item android:color="#FFB45309" android:offset="0.0" />
+                    <item android:color="#FFD97706" android:offset="0.25" />
+                    <item android:color="#FFF59E0B" android:offset="0.5" />
+                    <item android:color="#FFFDE047" android:offset="0.75" />
+                    <item android:color="#FFFFFBEB" android:offset="0.9" />
+                    <item android:color="#FFFFFFFF" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- C. 3-Tier Kanok Flame Crest -->
+        <!-- Tier 1: Apex Flame -->
+        <path
+            android:pathData="M362,176 C382,144 402,106 388,72 C384,62 374,66 372,74 C368,92 352,118 336,136 C330,142 334,152 342,154 C350,156 358,168 362,176 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="336"
+                    android:startY="176"
+                    android:endX="402"
+                    android:endY="72"
+                    android:type="linear">
+                    <item android:color="#FFD97706" android:offset="0.0" />
+                    <item android:color="#FFF59E0B" android:offset="0.4" />
+                    <item android:color="#FFFDE047" android:offset="0.8" />
+                    <item android:color="#FFFFFFFF" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <path
+            android:pathData="M374,74 Q382,114 348,150"
+            android:strokeColor="#E6FFFFFF"
+            android:strokeWidth="2.2"
+            android:strokeLineCap="round" />
+
+        <!-- Tier 2: Secondary Flame -->
+        <path
+            android:pathData="M400,214 C426,184 438,146 422,124 C416,116 408,122 410,130 C414,148 402,174 382,196 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="382"
+                    android:startY="214"
+                    android:endX="438"
+                    android:endY="124"
+                    android:type="linear">
+                    <item android:color="#FFB45309" android:offset="0.0" />
+                    <item android:color="#FFFDE047" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- Tier 3: Tertiary Flourish -->
+        <path
+            android:pathData="M414,272 C438,252 446,224 436,206 C432,200 424,204 426,212 C430,226 420,246 404,262 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="404"
+                    android:startY="272"
+                    android:endX="446"
+                    android:endY="206"
+                    android:type="linear">
+                    <item android:color="#FFB45309" android:offset="0.0" />
+                    <item android:color="#FFF59E0B" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- D. Inner Cashflow Circulation Ring -->
+        <path
+            android:pathData="M200,206 C248,206 294,220 318,252 C338,278 334,312 308,334 C284,354 246,356 206,346 L206,324 C236,332 266,330 284,314 C302,298 304,274 290,256 C272,232 238,222 200,222 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="200"
+                    android:startY="356"
+                    android:endX="338"
+                    android:endY="206"
+                    android:type="linear">
+                    <item android:color="#FFF7ED" android:offset="0.0" />
+                    <item android:color="#FFFBBF24" android:offset="0.3" />
+                    <item android:color="#FFD97706" android:offset="0.7" />
+                    <item android:color="#FF78350F" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <path
+            android:pathData="M204,214 C244,214 286,226 308,254 C326,276 324,304 302,322 C282,338 248,342 204,334"
+            android:strokeColor="#CCFEF08A"
+            android:strokeWidth="1.8"
+            android:strokeLineCap="round" />
+
+        <!-- E. Core Wealth Diamond Node -->
+        <path
+            android:pathData="M252,270 L261,280 L252,290 L243,280 Z"
+            android:fillColor="#FFFDE047"
+            android:strokeColor="#FFFFFBEB"
+            android:strokeWidth="1.2" />
+
+        <!-- F. Radiant 4-Point Apex Star -->
+        <path
+            android:pathData="M388,46 Q388,70 364,70 Q388,70 388,94 Q388,70 412,70 Q388,70 388,46 Z"
+            android:fillColor="#FFFFFFFF" />
+        <path
+            android:pathData="M388,54 Q388,70 372,70 Q388,70 388,86 Q388,70 404,70 Q388,70 388,54 Z"
+            android:fillColor="#FFFEF08A" />
+
+        <!-- Micro Sparkle on Spine -->
+        <path
+            android:pathData="M142,132 Q142,142 132,142 Q142,142 142,152 Q142,142 152,142 Q142,142 142,132 Z"
+            android:fillColor="#FFFFFFFF" />
+    </group>
+</vector>

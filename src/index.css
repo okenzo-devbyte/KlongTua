@@ -1,0 +1,135 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
+  input,
+  textarea {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+/* PURE LIGHT PAPER BACKGROUND: 100% White/Ivory Drawing Canvas */
+.theme-pure-light {
+  background-color: #FAF8F5;
+  background-image: 
+    radial-gradient(#E5DFD5 0.8px, transparent 0.8px),
+    radial-gradient(#E5DFD5 0.8px, #FAF8F5 0.8px);
+  background-size: 28px 28px;
+  background-position: 0 0, 14px 14px;
+  color: #1C1917;
+}
+
+/* PURE DARK SLATE BACKGROUND: 100% Midnight Charcoal Canvas */
+.theme-pure-dark {
+  background-color: #0A0D12;
+  background-image: 
+    radial-gradient(#1E2430 0.8px, transparent 0.8px),
+    radial-gradient(#1E2430 0.8px, #0A0D12 0.8px);
+  background-size: 28px 28px;
+  background-position: 0 0, 14px 14px;
+  color: #F3F4F6;
+}
+
+.font-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* PENCIL & MASCOT MICRO-ANIMATIONS */
+@keyframes waveArm {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-18deg); }
+  40% { transform: rotate(10deg); }
+  60% { transform: rotate(-14deg); }
+  80% { transform: rotate(6deg); }
+}
+
+@keyframes gentleBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes nodHead {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(5deg); }
+}
+
+@keyframes sparkleStar {
+  0%, 100% { opacity: 0.2; transform: scale(0.8) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.15) rotate(45deg); }
+}
+
+@keyframes popBubble {
+  0% { opacity: 0; transform: scale(0.7) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes floatPill {
+  0% { opacity: 0; transform: translateY(16px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes pencilFadeIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes pencilStrikethrough {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+.anim-wave-arm {
+  transform-origin: 22px 28px;
+  animation: waveArm 2.2s infinite ease-in-out;
+}
+
+.anim-bounce {
+  animation: gentleBounce 2.8s infinite ease-in-out;
+}
+
+.anim-nod {
+  transform-origin: 25px 22px;
+  animation: nodHead 2s infinite ease-in-out;
+}
+
+.anim-sparkle {
+  animation: sparkleStar 1.8s infinite ease-in-out;
+}
+
+.anim-bubble {
+  animation: popBubble 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.anim-pill {
+  animation: floatPill 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.anim-pencil-enter {
+  animation: pencilFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.pencil-strike {
+  position: relative;
+}
+
+.pencil-strike::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 1.5px;
+  background-color: #A8A29E;
+  animation: pencilStrikethrough 0.3s ease-out forwards;
+}
