@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   MonthlyInstallmentTask, 
   CashflowSummary, 
@@ -183,7 +183,59 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const overdueTasks = tasks.filter(t => t.status === 'OVERDUE');
   const paidTasks = tasks.filter(t => t.status === 'PAID');
   const pendingTasks = tasks.filter(t => t.status !== 'PAID');
-  const overdueTotalAmount = overdueTasks.reduce((sum, t) => sum + t.amount, 0);
+  const overdueTotalAmount = overdueTasks.reduce((sum: number, t: MonthlyInstallmentTask) => sum + t.amount, 0);
+
+  useEffect(() => {
+    setInputFunds(summary.availableFunds.toString());
+  }, [summary.availableFunds]);
+
+  // Reactive derivation for drill-down modal items so toggling updates live
+  const liveModalMonthlyTasks = useMemo<MonthlyInstallmentTask[]>(() => {
+    if (drillDownModal?.type !== 'MONTHLY_TASKS') return [];
+    if (drillDownModal.filter === 'ALL') return tasks;
+    return tasks.filter(t => t.status === drillDownModal.filter);
+  }, [drillDownModal, tasks]);
+
+  const liveModalMonthlyTotal = useMemo<number>(() => {
+    return liveModalMonthlyTasks.reduce((sum, t) => sum + t.amount, 0);
+  }, [liveModalMonthlyTasks]);
+
+  const liveCategoryTasks = useMemo<MonthlyInstallmentTask[]>(() => {
+    if (drillDownModal?.type !== 'CATEGORY') return [];
+    return tasks.filter(t => t.lender.category === drillDownModal.categoryKey);
+  }, [drillDownModal, tasks]);
+
+  const liveCategoryTotal = useMemo<number>(() => {
+    return liveCategoryTasks.reduce((sum, t) => sum + t.amount, 0);
+  }, [liveCategoryTasks]);
+
+  const liveModalSubtitle = useMemo(() => {
+    if (!drillDownModal) return undefined;
+    if (drillDownModal.type === 'TOTAL_DEBT') {
+      return `สัญญาทั้งหมด ${portfolioSummary.activeLoanCount} สัญญา • ยอดคงเหลือรวม ฿${formatCurrency(portfolioSummary.totalRemainingAllLoans)}`;
+    }
+    if (drillDownModal.type === 'AVAILABLE_FUNDS') {
+      return 'วิเคราะห์เงินสดที่มีอยู่และสภาพคล่องการชำระหนี้';
+    }
+    if (drillDownModal.type === 'MONTHLY_TASKS') {
+      if (drillDownModal.filter === 'ALL') return `มี ${tasks.length} รายการของรอบเดือน ${selectedYearMonth}`;
+      if (drillDownModal.filter === 'PAID') return `มี ${summary.paidCount} งวด ยอดชำระแล้ว ฿${formatCurrency(summary.totalPaid)}`;
+      if (drillDownModal.filter === 'PENDING') return `มีอีก ${summary.pendingCount} งวด ยอดค้างชำระ ฿${formatCurrency(summary.totalRemaining)}`;
+      if (drillDownModal.filter === 'OVERDUE') {
+        return summary.overdueCount > 0
+          ? `มี ${summary.overdueCount} รายการเลยกำหนด ยอดรวม ฿${formatCurrency(overdueTotalAmount)}`
+          : 'ยอดเยี่ยม! ไม่มีรายการค้างชำระเกินกำหนด';
+      }
+      return drillDownModal.subtitle;
+    }
+    if (drillDownModal.type === 'PROJECTION') {
+      return `ยอดต้องจ่าย ฿${formatCurrency(drillDownModal.data.totalDue)}`;
+    }
+    if (drillDownModal.type === 'CATEGORY') {
+      return `ยอดรวม ฿${formatCurrency(liveCategoryTotal)} (${liveCategoryTasks.length} รายการ)`;
+    }
+    return undefined;
+  }, [drillDownModal, portfolioSummary, tasks, selectedYearMonth, summary, overdueTotalAmount, liveCategoryTotal, liveCategoryTasks.length]);
 
   return (
     <div className="space-y-6 pb-20 max-w-5xl mx-auto">
@@ -850,14 +902,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           drillDownModal?.type === 'CATEGORY' ? `หนี้หมวด ${drillDownModal.label}` :
           'รายละเอียด'
         }
-        subtitle={
-          drillDownModal?.type === 'TOTAL_DEBT' ? `สัญญาทั้งหมด ${portfolioSummary.activeLoanCount} สัญญา • ยอดคงเหลือรวม ฿${formatCurrency(portfolioSummary.totalRemainingAllLoans)}` :
-          drillDownModal?.type === 'AVAILABLE_FUNDS' ? 'วิเคราะห์เงินสดที่มีอยู่และสภาพคล่องการชำระหนี้' :
-          drillDownModal?.type === 'MONTHLY_TASKS' ? drillDownModal.subtitle :
-          drillDownModal?.type === 'PROJECTION' ? `ยอดต้องจ่าย ฿${formatCurrency(drillDownModal.data.totalDue)}` :
-          drillDownModal?.type === 'CATEGORY' ? `ยอดรวม ฿${formatCurrency(drillDownModal.totalAmount)} (${drillDownModal.tasks.length} รายการ)` :
-          undefined
-        }
+        subtitle={liveModalSubtitle}
         footerActions={
           drillDownModal?.type === 'TOTAL_DEBT' ? (
             <button
@@ -1054,20 +1099,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {/* Header summary pill */}
             <div className="p-3 rounded-2xl bg-stone-50 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700 flex items-center justify-between">
               <span className="text-xs font-semibold text-stone-600 dark:text-stone-400">
-                พบทั้งหมด {drillDownModal.tasks.length} รายการ
+                พบทั้งหมด {liveModalMonthlyTasks.length} รายการ
               </span>
               <span className="text-sm font-extrabold font-num text-stone-900 dark:text-stone-100">
-                รวม ฿{formatCurrency(drillDownModal.totalAmount)}
+                รวม ฿{formatCurrency(liveModalMonthlyTotal)}
               </span>
             </div>
 
-            {drillDownModal.tasks.length === 0 ? (
+            {liveModalMonthlyTasks.length === 0 ? (
               <div className="p-8 text-center text-stone-400 space-y-1">
                 <p className="text-xs">ไม่มีรายการในหมวดนี้</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {drillDownModal.tasks.map(t => {
+                {liveModalMonthlyTasks.map(t => {
                   const isPaid = t.status === 'PAID';
                   const isOverdue = t.status === 'OVERDUE';
                   
@@ -1185,42 +1230,80 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* CATEGORY DRILLDOWN */}
         {drillDownModal?.type === 'CATEGORY' && (
           <div className="space-y-3">
-            <span className="text-xs font-bold text-stone-800 dark:text-stone-200 block">
-              รายการสัญญากู้และซับย่อยในหมวด {drillDownModal.label}:
-            </span>
+            <div className="p-3 rounded-2xl bg-stone-50 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700 flex items-center justify-between">
+              <span className="text-xs font-semibold text-stone-600 dark:text-stone-400">
+                หมวด {drillDownModal.label} ({liveCategoryTasks.length} รายการ)
+              </span>
+              <span className="text-sm font-extrabold font-num text-stone-900 dark:text-stone-100">
+                รวม ฿{formatCurrency(liveCategoryTotal)}
+              </span>
+            </div>
 
-            {drillDownModal.tasks.map(t => {
-              const isPaid = t.status === 'PAID';
-              return (
-                <div 
-                  key={t.id}
-                  className={`p-3.5 rounded-2xl border transition-colors flex items-center justify-between ${
-                    isPaid 
-                      ? 'bg-stone-50/60 dark:bg-stone-900/40 border-stone-200/60 dark:border-stone-800 opacity-75' 
-                      : 'bg-stone-50/80 dark:bg-stone-800/80 border-stone-200/80 dark:border-stone-700/80'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                    <LenderIcon lender={t.lender} size="md" />
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold text-stone-900 dark:text-stone-100 truncate">{t.loanTitle}</div>
-                      <div className="text-[11px] text-stone-500 dark:text-stone-400">
-                        {t.subTitle} • ครบวันที่ {formatShortThaiDayMonth(t.dueDate)} ({t.dueTime} น.)
+            {liveCategoryTasks.length === 0 ? (
+              <div className="p-8 text-center text-stone-400 space-y-1">
+                <p className="text-xs">ไม่มีรายการในหมวดนี้</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {liveCategoryTasks.map(t => {
+                  const isPaid = t.status === 'PAID';
+                  const isOverdue = t.status === 'OVERDUE';
+                  return (
+                    <div 
+                      key={t.id}
+                      onClick={() => onToggleTask(t)}
+                      className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between cursor-pointer select-none active:scale-[0.99] ${
+                        isPaid 
+                          ? 'bg-stone-50/60 dark:bg-stone-900/40 border-stone-200/60 dark:border-stone-800 opacity-75' 
+                          : isOverdue 
+                            ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900' 
+                            : 'bg-stone-50/80 dark:bg-stone-800/80 border-stone-200/80 dark:border-stone-700/80 hover:border-amber-400'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 pr-2">
+                        {/* 1-Tap Interactive Checkbox */}
+                        <div 
+                          className="shrink-0 p-1"
+                          title={isPaid ? 'แตะเพื่อเปลี่ยนเป็นค้างชำระ' : 'แตะเพื่อทำเครื่องหมายว่าชำระแล้ว'}
+                        >
+                          {isPaid ? (
+                            <CheckSquare size={20} className="text-emerald-600 dark:text-emerald-400" />
+                          ) : (
+                            <Square size={20} className="text-stone-400 dark:text-stone-500" />
+                          )}
+                        </div>
+
+                        <LenderIcon lender={t.lender} size="md" />
+
+                        <div className="min-w-0">
+                          <div className={`text-xs font-bold truncate ${isPaid ? 'line-through text-stone-400 dark:text-stone-500' : 'text-stone-900 dark:text-stone-100'}`}>
+                            {t.loanTitle}
+                          </div>
+                          <div className="text-[11px] text-stone-500 dark:text-stone-400 flex items-center gap-1">
+                            <span>{t.subTitle}</span>
+                            <span>•</span>
+                            <span className={isOverdue ? 'font-bold text-rose-600 dark:text-rose-400' : ''}>
+                              ครบ {formatShortThaiDayMonth(t.dueDate)} ({t.dueTime} น.)
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <div className={`text-xs font-extrabold font-num ${isPaid ? 'text-stone-400 dark:text-stone-500 line-through' : 'text-stone-900 dark:text-stone-100'}`}>
+                          ฿{formatCurrency(t.amount)}
+                        </div>
+                        <span className={`text-[10px] font-bold ${
+                          isPaid ? 'text-emerald-600 dark:text-emerald-400' : isOverdue ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'
+                        }`}>
+                          {isPaid ? '✓ ชำระแล้ว' : isOverdue ? '⚠ เลยกำหนด' : 'รอชำระ'}
+                        </span>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="text-right shrink-0">
-                    <div className="text-xs font-bold font-num text-stone-900 dark:text-stone-100">
-                      ฿{formatCurrency(t.amount)}
-                    </div>
-                    <span className={`text-[10px] font-bold ${isPaid ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                      {isPaid ? '✓ ชำระแล้ว' : 'ค้างชำระ'}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </AdaptiveDetailSheet>

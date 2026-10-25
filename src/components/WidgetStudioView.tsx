@@ -160,7 +160,7 @@ export const WidgetStudioView: React.FC<WidgetStudioViewProps> = ({
               <span>ธีมวิดเจ็ต (Theme Color)</span>
             </span>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setSelectedTheme('LIGHT')}
@@ -186,6 +186,19 @@ export const WidgetStudioView: React.FC<WidgetStudioViewProps> = ({
                 <div className="text-xs font-bold">มืด (Midnight Dark)</div>
                 <div className="text-[10px] text-stone-400 mt-0.5">พื้นดำ ประหยัดแบตเตอรี่</div>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedTheme('GLASS')}
+                className={`p-3 rounded-2xl border text-left transition-all ${
+                  selectedTheme === 'GLASS'
+                    ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 dark:border-amber-500 font-bold text-stone-900 dark:text-stone-100 shadow-xs'
+                    : 'bg-stone-50 dark:bg-stone-800/60 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-400'
+                }`}
+              >
+                <div className="text-xs font-bold">กระจกใส (Glass)</div>
+                <div className="text-[10px] text-stone-400 mt-0.5">โปร่งแสง ทันสมัย</div>
+              </button>
             </div>
           </div>
 
@@ -198,8 +211,8 @@ export const WidgetStudioView: React.FC<WidgetStudioViewProps> = ({
 
             <div className="space-y-2">
               {[
-                { size: '4x3' as WidgetSize, label: 'ขนาดใหญ่ 4 x 3 (แนะนำ)', desc: 'แสดงยอดหนี้คงเหลือ + สูงสุด 4 รายการ พร้อมปุ่มติ๊กจ่าย' },
-                { size: '4x2' as WidgetSize, label: 'ขนาดมาตรฐาน 4 x 2', desc: 'แสดงยอดหนี้คงเหลือ + 2 รายการค้างชำระ' },
+                { size: '4x4' as WidgetSize, label: 'ขนาดเต็ม 4 x 4 (ผู้บริหาร)', desc: 'แสดงสรุปหนี้สินทั้งหมด ยอดค้างชำระ และรายการผ่อนครบวงจร' },
+                { size: '4x2' as WidgetSize, label: 'ขนาดมาตรฐาน 4 x 2 (แนะนำ)', desc: 'แสดงยอดหนี้คงเหลือ + รายการค้างชำระ พร้อมปุ่มติ๊กจ่าย' },
                 { size: '2x2' as WidgetSize, label: 'ขนาดกะทัดรัด 2 x 2', desc: 'แสดงเฉพาะยอดรวมคงเหลือและสถานะเงินต้น' },
               ].map(opt => (
                 <button
@@ -309,6 +322,7 @@ export const WidgetStudioView: React.FC<WidgetStudioViewProps> = ({
                 <HomeWidgetCard
                   tasks={tasks}
                   summary={summary}
+                  portfolioSummary={portfolioSummary}
                   size={selectedSize}
                   theme={selectedTheme}
                   showPaidItems={showPaid}

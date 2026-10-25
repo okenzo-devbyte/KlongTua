@@ -17,8 +17,10 @@ import {
   snoozeTaskAlert,
   clearTaskSnooze,
   isTaskSnoozed,
+  deleteLoanAndRecords,
   STATE_CHANGE_EVENT 
 } from './services/storageService';
+import { format, addMonths } from 'date-fns';
 import { 
   getMonthlyInstallmentTasks, 
   calculateMonthlySummary,
@@ -155,6 +157,29 @@ export function App() {
     [loans]
   );
 
+  // Compute tasks for real current month (for native Android widget, urgent alerts & notifications)
+  const currentRealMonth = useMemo(() => format(new Date(), 'yyyy-MM'), []);
+  const todayDateString = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
+
+  const currentRealTasks = useMemo(
+    () => getMonthlyInstallmentTasks(loans, paymentRecords, currentRealMonth),
+    [loans, paymentRecords, currentRealMonth]
+  );
+  const currentRealSummary = useMemo(
+    () => calculateMonthlySummary(currentRealTasks, availableFunds, currentRealMonth),
+    [currentRealTasks, availableFunds, currentRealMonth]
+  );
+
+  const nextRealMonth = useMemo(() => format(addMonths(new Date(), 1), 'yyyy-MM'), []);
+  const nextRealTasks = useMemo(
+    () => getMonthlyInstallmentTasks(loans, paymentRecords, nextRealMonth),
+    [loans, paymentRecords, nextRealMonth]
+  );
+  const notificationTasks = useMemo(
+    () => [...currentRealTasks, ...nextRealTasks],
+    [currentRealTasks, nextRealTasks]
+  );
+
   const activeCustomTab = navTabs.find(tab => tab.isCustom && tab.id === currentTab);
   const customFilter = activeCustomTab?.customFilter;
   const customTabTasks = customFilter && customFilter !== 'ALL'
@@ -196,14 +221,14 @@ export function App() {
 
   // Check for urgent due alerts (respecting 1-hour snooze)
   useEffect(() => {
-    const overdueOrToday = tasks.find(t => 
-      (t.status === 'OVERDUE' || t.dueDate === new Date().toISOString().slice(0, 10)) &&
+    const overdueOrToday = currentRealTasks.find(t => 
+      (t.status === 'OVERDUE' || t.dueDate === todayDateString) &&
       !isTaskSnoozed(t.id)
     );
     if (overdueOrToday && !urgentAlertTask) {
       setUrgentAlertTask(overdueOrToday);
     }
-  }, [tasks]);
+  }, [currentRealTasks, todayDateString, urgentAlertTask]);
 
   // Announce urgent due reminders with the Thai voice engine
   useEffect(() => {
@@ -221,8 +246,8 @@ export function App() {
 
   // Keep native local notifications in sync with tasks and rules
   useEffect(() => {
-    void syncScheduledNotifications(tasks, notificationRules);
-  }, [tasks, notificationRules]);
+    void syncScheduledNotifications(notificationTasks, notificationRules, new Date(), voiceConfig.enabled);
+  }, [notificationTasks, notificationRules, voiceConfig.enabled]);
 
   // Apply toggles performed on the Android home screen widget, then refresh state
   useEffect(() => {
@@ -273,24 +298,24 @@ export function App() {
   useEffect(() => addAppStateListener(isActive => {
     if (!isActive) return;
 
-    void syncScheduledNotifications(tasks, notificationRules);
+    void syncScheduledNotifications(notificationTasks, notificationRules, new Date(), voiceConfig.enabled);
     void syncPendingWidgetToggles().then(applied => {
       if (applied > 0) reloadState();
     });
-  }), [tasks, notificationRules]);
+  }), [notificationTasks, notificationRules, voiceConfig.enabled]);
 
   // Sync snapshot for Home Screen Widget
   useEffect(() => {
     saveWidgetSnapshot({
       updatedAt: new Date().toISOString(),
-      yearMonth: selectedYearMonth,
-      totalRemainingDue: summary.totalRemaining,
-      availableFunds: summary.availableFunds,
-      isSufficient: summary.isSufficient,
-      shortfallAmount: summary.shortfallAmount,
+      yearMonth: currentRealMonth,
+      totalRemainingDue: currentRealSummary.totalRemaining,
+      availableFunds: currentRealSummary.availableFunds,
+      isSufficient: currentRealSummary.isSufficient,
+      shortfallAmount: currentRealSummary.shortfallAmount,
       totalRemainingDebt: portfolioSummary.totalRemainingAllLoans,
       totalPrincipalDebt: portfolioSummary.totalPrincipalAllLoans,
-      tasks: tasks.map(t => ({
+      tasks: currentRealTasks.map(t => ({
         id: t.id,
         loanId: t.loanId,
         subItemId: t.subItemId,
@@ -306,7 +331,7 @@ export function App() {
         isOverdue: t.status === 'OVERDUE',
       })),
     });
-  }, [summary, tasks, selectedYearMonth, portfolioSummary]);
+  }, [currentRealSummary, currentRealTasks, currentRealMonth, portfolioSummary]);
 
   // Toast Helpers - Single Floating Pill with 1.5s Auto-Fade
   const addToast = (type: ToastMessage['type'], title: string, message: string) => {
@@ -379,8 +404,7 @@ export function App() {
   };
 
   const handleDeleteLoan = (loanId: string) => {
-    const updated = loans.filter(l => l.id !== loanId);
-    saveLoans(updated);
+    deleteLoanAndRecords(loanId);
     addToast('INFO', 'ลบสัญญาแล้ว', 'นำออกจากระบบเรียบร้อย');
   };
 
@@ -531,9 +555,11 @@ export function App() {
         {currentTab === 'loans' && (
           <LoanManagerView
             loans={loans}
+            paymentRecords={paymentRecords}
             portfolioSummary={portfolioSummary}
             onAddLoan={() => setEditingLoan(null)}
             onEditLoan={(loan) => setEditingLoan(loan)}
+            onSaveLoan={handleSaveLoan}
             onDeleteLoan={handleDeleteLoan}
             onOpenExcelModal={() => setIsExcelModalOpen(true)}
             onLoadSampleData={handleLoadSampleData}

@@ -90,7 +90,7 @@ describe('Notification Scheduling Engine', () => {
     expect(entries[0].id).toBe(alerts[0].id);
     expect(entries[0].taskId).toBe(futureTask.id);
     expect(entries[0].scheduleAt.getTime()).toBe(alerts[0].triggerTime.getTime());
-    expect(entries[0].title).toContain('DebtFlow');
+    expect(entries[0].title).toContain('คล่องตัว');
     expect(entries[0].body).toContain(futureTask.loanTitle);
   });
 

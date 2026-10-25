@@ -101,7 +101,9 @@ export function toggleSubItemPayment(
   const { loans, paymentRecords, availableFunds } = appState;
 
   const isCurrentlyPaid = task.status === 'PAID';
-  const targetStatus = isCurrentlyPaid ? 'PENDING' : 'PAID';
+  const targetStatus = isCurrentlyPaid 
+    ? (task.daysRemaining < 0 ? 'OVERDUE' : 'PENDING') 
+    : 'PAID';
 
   let updatedFunds = availableFunds;
   const existingRecordIndex = paymentRecords.findIndex(

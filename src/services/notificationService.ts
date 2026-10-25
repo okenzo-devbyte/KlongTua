@@ -89,7 +89,7 @@ const SCHEDULED_NOTIFICATION_IDS_KEY = 'debtflow_scheduled_notification_ids_v1';
 export function buildNotificationSchedule(alerts: ScheduledAlert[]): NativeNotificationPayload[] {
   return alerts.map(alert => ({
     id: alert.id,
-    title: '🔔 DebtFlow: เตือนชำระหนี้',
+    title: '🔔 คล่องตัว: เตือนชำระหนี้',
     body: alert.message,
     scheduleAt: alert.triggerTime,
     taskId: alert.taskId,
@@ -133,7 +133,8 @@ export async function ensureExactAlarmPermission(): Promise<boolean> {
 export async function syncScheduledNotifications(
   tasks: MonthlyInstallmentTask[],
   rules: NotificationRule[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  soundEnabled: boolean = true
 ): Promise<{ scheduled: number; cancelled: number }> {
   const payloads = computeNotificationSchedule(tasks, rules, now);
 
@@ -176,7 +177,7 @@ export async function syncScheduledNotifications(
           title: payload.title,
           body: payload.body,
           schedule: { at: payload.scheduleAt },
-          sound: 'beep.wav',
+          sound: soundEnabled ? 'beep.wav' : undefined,
           actionTypeId: '',
           extra: { taskId: payload.taskId },
         })),
@@ -212,7 +213,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 export async function sendTestNotification(): Promise<boolean> {
-  const title = '🔔 DebtFlow Enterprise: ทดสอบการแจ้งเตือน';
+  const title = '🔔 คล่องตัว: ทดสอบการแจ้งเตือน';
   const body = 'ระบบแจ้งเตือนภาระหนี้สินและงวดซับแยกทำงานได้อย่างสมบูรณ์!';
 
   try {

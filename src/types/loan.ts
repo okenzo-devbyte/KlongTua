@@ -189,11 +189,11 @@ export interface PortfolioDebtSummary {
 }
 
 export type DashboardDrillDownModal = 
-  | { type: 'TOTAL_DEBT'; summary: PortfolioDebtSummary; loans: LoanAccount[] }
-  | { type: 'AVAILABLE_FUNDS'; summary: CashflowSummary }
-  | { type: 'MONTHLY_TASKS'; filter: 'ALL' | 'PENDING' | 'PAID' | 'OVERDUE'; title: string; subtitle: string; tasks: MonthlyInstallmentTask[]; totalAmount: number }
-  | { type: 'PROJECTION'; data: RollingProjectionMonth; tasks: MonthlyInstallmentTask[] }
-  | { type: 'CATEGORY'; categoryKey: string; label: string; tasks: MonthlyInstallmentTask[]; totalAmount: number }
+  | { type: 'TOTAL_DEBT'; summary?: PortfolioDebtSummary; loans?: LoanAccount[] }
+  | { type: 'AVAILABLE_FUNDS'; summary?: CashflowSummary }
+  | { type: 'MONTHLY_TASKS'; filter: 'ALL' | 'PENDING' | 'PAID' | 'OVERDUE'; title: string; subtitle?: string; tasks?: MonthlyInstallmentTask[]; totalAmount?: number }
+  | { type: 'PROJECTION'; data: RollingProjectionMonth; tasks: MonthlyInstallmentTask[]; yearMonth?: string }
+  | { type: 'CATEGORY'; categoryKey: string; label: string; tasks?: MonthlyInstallmentTask[]; totalAmount?: number }
   | null;
 
 export type PdfReportType = 'SUMMARY' | 'DETAIL';

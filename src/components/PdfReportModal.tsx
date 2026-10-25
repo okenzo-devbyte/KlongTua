@@ -10,7 +10,8 @@ import {
 import { 
   formatCurrency, 
   getThaiMonthYear, 
-  formatThaiDateLong 
+  formatThaiDateLong,
+  calculatePortfolioDebtSummary 
 } from '../utils/cashflowCalculator';
 import { 
   Printer, 
@@ -64,6 +65,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   const monthTh = getThaiMonthYear(selectedYearMonth);
   const nowFormatted = format(new Date(), 'dd/MM/yyyy HH:mm น.');
   const totalCategoryAmount = Object.values(categoryTotals).reduce((sum, c) => sum + c.amount, 0);
+  const portfolioSummary = calculatePortfolioDebtSummary(loans);
 
   const handlePrint = async () => {
     await printCurrentPage('KlongTua Financial Report');
@@ -263,6 +265,48 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                           <span className={`text-[9px] font-bold block mt-0.5 ${summary.isSufficient ? 'text-emerald-700' : 'text-rose-700'}`}>
                             {summary.isSufficient ? `✓ เงินพอจ่าย (เหลือ ฿${formatCurrency(summary.surplusAmount)})` : `⚠️ ขาดอีก ฿${formatCurrency(summary.shortfallAmount)}`}
                           </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SECTION 2: Portfolio Debt Overview */}
+                    <div className="print-avoid-break pt-4">
+                      <h2 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                        <Building2 size={13} className="text-amber-600" />
+                        <span>ภาพรวมพอร์ตหนี้สินทั้งหมด (Overall Portfolio Debt Summary)</span>
+                      </h2>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="p-3 rounded-xl border border-stone-200 bg-stone-50">
+                          <span className="text-[10px] text-stone-500 font-semibold block">หนี้คงเหลือรวมสุทธิ</span>
+                          <span className="text-base font-extrabold text-stone-900 font-mono-numbers">
+                            ฿{formatCurrency(portfolioSummary.totalRemainingAllLoans)}
+                          </span>
+                          <span className="text-[9px] text-stone-400 block mt-0.5">จาก {portfolioSummary.activeLoanCount} สัญญาที่ผ่อนอยู่</span>
+                        </div>
+
+                        <div className="p-3 rounded-xl border border-stone-200 bg-stone-50">
+                          <span className="text-[10px] text-stone-500 font-semibold block">วงเงินตั้งต้นรวม</span>
+                          <span className="text-base font-extrabold text-stone-700 font-mono-numbers">
+                            ฿{formatCurrency(portfolioSummary.totalPrincipalAllLoans)}
+                          </span>
+                          <span className="text-[9px] text-stone-400 block mt-0.5">ยอดกู้เริ่มแรก</span>
+                        </div>
+
+                        <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/50">
+                          <span className="text-[10px] text-emerald-800 font-semibold block">ลดเงินต้นสะสมแล้ว</span>
+                          <span className="text-base font-extrabold text-emerald-700 font-mono-numbers">
+                            ฿{formatCurrency(portfolioSummary.totalPaidOffAllLoans)}
+                          </span>
+                          <span className="text-[9px] text-emerald-600 block mt-0.5">ปลดหนี้แล้ว {portfolioSummary.debtPayoffRate.toFixed(1)}%</span>
+                        </div>
+
+                        <div className="p-3 rounded-xl border border-stone-200 bg-stone-50">
+                          <span className="text-[10px] text-stone-500 font-semibold block">ภาระผ่อนรวมต่อเดือน</span>
+                          <span className="text-base font-extrabold text-amber-700 font-mono-numbers">
+                            ฿{formatCurrency(portfolioSummary.monthlyCommitment)}
+                          </span>
+                          <span className="text-[9px] text-stone-400 block mt-0.5">ยอดผ่อนทุกสัญญา</span>
                         </div>
                       </div>
                     </div>

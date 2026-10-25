@@ -13,7 +13,7 @@ import {
 } from '../services/gmailBackupService';
 import { exportFullExcelWorkbook } from '../services/excelService';
 import { loadAppState } from '../services/storageService';
-import { calculateRollingProjection, calculateCategoryDistribution } from '../utils/cashflowCalculator';
+import { calculateRollingProjection, calculateCategoryDistribution, calculatePortfolioDebtSummary } from '../utils/cashflowCalculator';
 import { PdfReportModal } from './PdfReportModal';
 import { 
   Cloud, 
@@ -86,7 +86,8 @@ export const GmailBackupView: React.FC<GmailBackupViewProps> = ({
   // Export CSV
   const handleExportCsv = async () => {
     try {
-      await shareCsvReport(tasks, summary);
+      const portfolioSummary = calculatePortfolioDebtSummary(loans || []);
+      await shareCsvReport(tasks, summary, portfolioSummary);
       setStatusMessage({
         type: 'success',
         text: 'แชร์รายงานตารางสรุปหนี้สิน .CSV เรียบร้อยแล้ว',

@@ -18,7 +18,7 @@ export const ThaiMascot: React.FC<ThaiMascotProps> = ({
   type,
   size = 60,
   className = '',
-  showBubbleOnClick = false,
+  showBubbleOnClick = true,
   voiceConfig,
   lowSpecMode = false,
   triggerTimestamp,

@@ -80,7 +80,7 @@ export function buildTaskReminderSpeech(
   const timeSpoken = formatTimeForThaiSpeech(task.dueTime);
 
   if (config.privacyMode) {
-    return `แจ้งเตือนจาก เดบท์โฟลว์ ${polite} คุณมีรายการสำคัญที่ครบกำหนดดำเนินการในวันที่ ${dateLong} เวลา ${timeSpoken} กรุณาตรวจสอบในแอปพลิเคชัน${polite}`;
+    return `แจ้งเตือนจากแอป คล่องตัว ${polite} คุณมีรายการสำคัญที่ครบกำหนดดำเนินการในวันที่ ${dateLong} เวลา ${timeSpoken} กรุณาตรวจสอบในแอปพลิเคชัน${polite}`;
   }
 
   const lenderSpoken = normalizeForThaiPronunciation(task.lender.nameTh);

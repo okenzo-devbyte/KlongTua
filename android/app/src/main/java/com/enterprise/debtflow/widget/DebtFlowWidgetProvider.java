@@ -278,6 +278,7 @@ public class DebtFlowWidgetProvider extends AppWidgetProvider {
             }
             if (target == null) return;
 
+            double taskAmount = target.optDouble("amount", 0);
             boolean desiredPaid = !target.optBoolean("isPaid", false);
             target.put("isPaid", desiredPaid);
             if (desiredPaid) {
@@ -293,8 +294,25 @@ public class DebtFlowWidgetProvider extends AppWidgetProvider {
             }
 
             double availableFunds = snapshot.optDouble("availableFunds", 0);
+            double totalRemainingDebt = snapshot.optDouble("totalRemainingDebt", -1);
+            if (desiredPaid) {
+                availableFunds = Math.max(0, availableFunds - taskAmount);
+                if (totalRemainingDebt >= 0) {
+                    totalRemainingDebt = Math.max(0, totalRemainingDebt - taskAmount);
+                }
+            } else {
+                availableFunds += taskAmount;
+                if (totalRemainingDebt >= 0) {
+                    totalRemainingDebt += taskAmount;
+                }
+            }
+
             boolean isSufficient = availableFunds >= totalRemaining;
             snapshot.put("totalRemainingDue", totalRemaining);
+            snapshot.put("availableFunds", availableFunds);
+            if (totalRemainingDebt >= 0) {
+                snapshot.put("totalRemainingDebt", totalRemainingDebt);
+            }
             snapshot.put("isSufficient", isSufficient);
             snapshot.put("shortfallAmount", isSufficient ? 0 : totalRemaining - availableFunds);
             snapshot.put("updatedAt", nowIso());

@@ -3,7 +3,8 @@ import {
   MonthlyInstallmentTask, 
   CashflowSummary, 
   WidgetSize, 
-  WidgetTheme 
+  WidgetTheme,
+  PortfolioDebtSummary
 } from '../types/loan';
 import { LenderIcon } from './LenderIcon';
 import { formatCurrency, getShortThaiMonthYear, formatShortThaiDayMonth } from '../utils/cashflowCalculator';
@@ -21,6 +22,7 @@ import {
 interface HomeWidgetCardProps {
   tasks: MonthlyInstallmentTask[];
   summary: CashflowSummary;
+  portfolioSummary?: PortfolioDebtSummary;
   size?: WidgetSize;
   theme?: WidgetTheme;
   showPaidItems?: boolean;
@@ -33,6 +35,7 @@ interface HomeWidgetCardProps {
 export const HomeWidgetCard: React.FC<HomeWidgetCardProps> = ({
   tasks,
   summary,
+  portfolioSummary,
   size = '4x2',
   theme = 'LIGHT',
   showPaidItems = true,
@@ -184,13 +187,20 @@ export const HomeWidgetCard: React.FC<HomeWidgetCardProps> = ({
           {/* Quick Metrics Line */}
           <div className="flex items-baseline justify-between mt-2">
             <div>
-              <span className={`text-[11px] font-medium ${subTextClass}`}>ยอดค้างชำระเดือนนี้: </span>
-              <span className="text-xl font-bold font-mono-numbers text-slate-900 dark:text-white">
-                ฿{formatCurrency(summary.totalRemaining)}
-              </span>
-              <span className={`text-[10px] ml-2 ${subTextClass}`}>
-                (จ่ายแล้ว {summary.paidCount}/{summary.paidCount + summary.pendingCount + summary.overdueCount} งวด)
-              </span>
+              <div className="flex items-baseline gap-2">
+                <span className={`text-[11px] font-medium ${subTextClass}`}>ยอดค้างเดือนนี้: </span>
+                <span className="text-xl font-bold font-mono-numbers text-slate-900 dark:text-white">
+                  ฿{formatCurrency(summary.totalRemaining)}
+                </span>
+                <span className={`text-[10px] ${subTextClass}`}>
+                  (จ่ายแล้ว {summary.paidCount}/{summary.paidCount + summary.pendingCount + summary.overdueCount} งวด)
+                </span>
+              </div>
+              {portfolioSummary && (
+                <div className="text-[10px] text-stone-500 dark:text-stone-400 mt-0.5">
+                  หนี้คงเหลือรวม: <span className="font-bold font-mono-numbers text-stone-700 dark:text-stone-300">฿{formatCurrency(portfolioSummary.totalRemainingAllLoans)}</span>
+                </div>
+              )}
             </div>
 
             {/* Monthly Progress Bar */}
@@ -328,16 +338,24 @@ export const HomeWidgetCard: React.FC<HomeWidgetCardProps> = ({
         </div>
 
         {/* High-level financial cards */}
-        <div className="grid grid-cols-2 gap-2 mt-3">
+        <div className={`grid ${portfolioSummary ? 'grid-cols-3' : 'grid-cols-2'} gap-2 mt-3`}>
           <div className={`p-2.5 rounded-2xl border ${itemBorderClass}`}>
-            <span className={`text-[10px] font-medium ${subTextClass}`}>ยอดค้างจ่าย</span>
-            <div className="text-base font-bold font-mono-numbers text-slate-900 dark:text-white">
+            <span className={`text-[10px] font-medium ${subTextClass}`}>ยอดค้างเดือนนี้</span>
+            <div className="text-sm sm:text-base font-bold font-mono-numbers text-slate-900 dark:text-white">
               ฿{formatCurrency(summary.totalRemaining)}
             </div>
           </div>
+          {portfolioSummary && (
+            <div className={`p-2.5 rounded-2xl border ${itemBorderClass}`}>
+              <span className={`text-[10px] font-medium ${subTextClass}`}>หนี้คงเหลือรวม</span>
+              <div className="text-sm sm:text-base font-bold font-mono-numbers text-stone-700 dark:text-stone-300">
+                ฿{formatCurrency(portfolioSummary.totalRemainingAllLoans)}
+              </div>
+            </div>
+          )}
           <div className={`p-2.5 rounded-2xl border ${itemBorderClass}`}>
-            <span className={`text-[10px] font-medium ${subTextClass}`}>เงินต้นสำรองที่มี</span>
-            <div className="text-base font-bold font-mono-numbers text-emerald-600 dark:text-emerald-400">
+            <span className={`text-[10px] font-medium ${subTextClass}`}>เงินต้นสำรอง</span>
+            <div className="text-sm sm:text-base font-bold font-mono-numbers text-emerald-600 dark:text-emerald-400">
               ฿{formatCurrency(summary.availableFunds)}
             </div>
           </div>

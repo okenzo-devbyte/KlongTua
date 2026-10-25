@@ -6,9 +6,10 @@ import {
   MonthlyInstallmentTask,
   CashflowSummary,
   RollingProjectionMonth,
+  PortfolioDebtSummary,
 } from '../types/loan';
 import { LENDERS_CATALOG } from '../data/lenders';
-import { getLenderById, getThaiMonthYear } from '../utils/cashflowCalculator';
+import { getLenderById, getThaiMonthYear, calculatePortfolioDebtSummary } from '../utils/cashflowCalculator';
 import { format } from 'date-fns';
 
 export interface ParsedExcelImportResult {
@@ -405,8 +406,10 @@ export function exportFullExcelWorkbook(params: {
   summary: CashflowSummary;
   rollingProjections: RollingProjectionMonth[];
   selectedYearMonth: string;
+  portfolioSummary?: PortfolioDebtSummary;
 }): void {
   const { loans, tasks, summary, rollingProjections, selectedYearMonth } = params;
+  const portfolio = params.portfolioSummary || calculatePortfolioDebtSummary(loans);
   const monthLabel = getThaiMonthYear(selectedYearMonth);
 
   const wb = XLSX.utils.book_new();
@@ -427,6 +430,14 @@ export function exportFullExcelWorkbook(params: {
         : `ไม่เพียงพอ (ขาดอีก -${summary.shortfallAmount} บาท)`,
     },
     { 'หัวข้อสรุปทางการเงิน': 'อัตราความสำเร็จการชำระ (%)', 'รายละเอียด / ยอดเงิน (บาท)': `${summary.completionRate}%` },
+    { 'หัวข้อสรุปทางการเงิน': '', 'รายละเอียด / ยอดเงิน (บาท)': '' },
+    { 'หัวข้อสรุปทางการเงิน': '--- ภาพรวมพอร์ตหนี้สินทั้งหมด (Portfolio Debt) ---', 'รายละเอียด / ยอดเงิน (บาท)': '' },
+    { 'หัวข้อสรุปทางการเงิน': 'จำนวนสัญญาเงินกู้ที่ใช้งานอยู่ (สัญญา)', 'รายละเอียด / ยอดเงิน (บาท)': portfolio.activeLoanCount },
+    { 'หัวข้อสรุปทางการเงิน': 'วงเงินกู้ตั้งต้นรวมทุกสัญญา (บาท)', 'รายละเอียด / ยอดเงิน (บาท)': portfolio.totalPrincipalAllLoans },
+    { 'หัวข้อสรุปทางการเงิน': 'ยอดหนี้คงเหลือรวมสุทธิ (บาท)', 'รายละเอียด / ยอดเงิน (บาท)': portfolio.totalRemainingAllLoans },
+    { 'หัวข้อสรุปทางการเงิน': 'ยอดเงินต้นที่ชำระลดลงแล้ว (บาท)', 'รายละเอียด / ยอดเงิน (บาท)': portfolio.totalPaidOffAllLoans },
+    { 'หัวข้อสรุปทางการเงิน': 'อัตราความคืบหน้าการปลดหนี้สะสม (%)', 'รายละเอียด / ยอดเงิน (บาท)': `${portfolio.debtPayoffRate.toFixed(2)}%` },
+    { 'หัวข้อสรุปทางการเงิน': 'ภาระผ่อนชำระรวมต่อเดือน (บาท)', 'รายละเอียด / ยอดเงิน (บาท)': portfolio.monthlyCommitment },
     { 'หัวข้อสรุปทางการเงิน': '', 'รายละเอียด / ยอดเงิน (บาท)': '' },
     { 'หัวข้อสรุปทางการเงิน': '--- พยากรณ์สภาพคล่องล่วงหน้า 6 เดือน ---', 'รายละเอียด / ยอดเงิน (บาท)': '' },
   ];

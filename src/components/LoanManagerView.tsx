@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LoanAccount, LenderInfo, PortfolioDebtSummary } from '../types/loan';
+import { LoanAccount, LenderInfo, PortfolioDebtSummary, MonthlyPaymentRecord } from '../types/loan';
 import { LenderIcon } from './LenderIcon';
 import { getLenderById, formatCurrency, calculatePortfolioDebtSummary } from '../utils/cashflowCalculator';
 import { confirmAction } from '../services/native/dialog';
@@ -17,14 +17,18 @@ import {
   ShieldCheck,
   FileSpreadsheet,
   Sparkles,
-  BarChart3
+  BarChart3,
+  Power,
+  CheckCircle2
 } from 'lucide-react';
 
 interface LoanManagerViewProps {
   loans: LoanAccount[];
+  paymentRecords?: MonthlyPaymentRecord[];
   portfolioSummary?: PortfolioDebtSummary;
   onAddLoan: () => void;
   onEditLoan: (loan: LoanAccount) => void;
+  onSaveLoan?: (loan: LoanAccount) => void;
   onDeleteLoan: (loanId: string) => void;
   onOpenExcelModal?: () => void;
   onLoadSampleData?: () => void;
@@ -32,14 +36,17 @@ interface LoanManagerViewProps {
 
 export const LoanManagerView: React.FC<LoanManagerViewProps> = ({
   loans,
+  paymentRecords,
   portfolioSummary: propPortfolioSummary,
   onAddLoan,
   onEditLoan,
+  onSaveLoan,
   onDeleteLoan,
   onOpenExcelModal,
   onLoadSampleData,
 }) => {
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'CLOSED'>('ALL');
   const [expandedLoanId, setExpandedLoanId] = useState<string | null>(null);
 
   const portfolioSummary = propPortfolioSummary || calculatePortfolioDebtSummary(loans);
@@ -48,7 +55,23 @@ export const LoanManagerView: React.FC<LoanManagerViewProps> = ({
     setExpandedLoanId(expandedLoanId === id ? null : id);
   };
 
+  const handleToggleActive = async (loan: LoanAccount) => {
+    const nextActive = !loan.isActive;
+    const msg = nextActive 
+      ? `คุณต้องการเปิดใช้งานสัญญา "${loan.title}" อีกครั้งใช่หรือไม่?` 
+      : `คุณต้องการทำเครื่องหมายสัญญา "${loan.title}" ว่า "ปิดบัญชีแล้ว" ใช่หรือไม่?\n(สัญญาที่ปิดบัญชีแล้วจะไม่ถูกนำมาสร้างเป็นรายการใน To-Do List และการแจ้งเตือน)`;
+    if (await confirmAction(msg)) {
+      if (onSaveLoan) {
+        onSaveLoan({ ...loan, isActive: nextActive });
+      } else {
+        onEditLoan({ ...loan, isActive: nextActive });
+      }
+    }
+  };
+
   const filteredLoans = loans.filter(l => {
+    if (statusFilter === 'ACTIVE' && !l.isActive) return false;
+    if (statusFilter === 'CLOSED' && l.isActive) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return l.title.toLowerCase().includes(q) 
@@ -133,16 +156,39 @@ export const LoanManagerView: React.FC<LoanManagerViewProps> = ({
         </div>
       </div>
 
-      {/* 3. Search Bar */}
-      <div className="relative">
-        <Search size={16} className="absolute left-3.5 top-3 text-stone-400 dark:text-stone-500" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="ค้นหาเงินกู้ตามชื่อ หรือเลขที่สัญญา..."
-          className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xs focus:outline-none focus:ring-2 focus:ring-amber-500 text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500"
-        />
+      {/* 3. Search Bar & Status Filter Tabs */}
+      <div className="space-y-2.5">
+        <div className="relative">
+          <Search size={16} className="absolute left-3.5 top-3 text-stone-400 dark:text-stone-500" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="ค้นหาเงินกู้ตามชื่อ หรือเลขที่สัญญา..."
+            className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xs focus:outline-none focus:ring-2 focus:ring-amber-500 text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-stone-100 dark:bg-stone-800/80 text-xs font-bold">
+          <button
+            onClick={() => setStatusFilter('ALL')}
+            className={`flex-1 py-1.5 rounded-xl transition-all ${statusFilter === 'ALL' ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-stone-100 shadow-xs' : 'text-stone-500 dark:text-stone-400'}`}
+          >
+            ทั้งหมด ({loans.length})
+          </button>
+          <button
+            onClick={() => setStatusFilter('ACTIVE')}
+            className={`flex-1 py-1.5 rounded-xl transition-all ${statusFilter === 'ACTIVE' ? 'bg-white dark:bg-stone-700 text-amber-600 dark:text-amber-400 shadow-xs' : 'text-stone-500 dark:text-stone-400'}`}
+          >
+            กำลังผ่อน ({loans.filter(l => l.isActive).length})
+          </button>
+          <button
+            onClick={() => setStatusFilter('CLOSED')}
+            className={`flex-1 py-1.5 rounded-xl transition-all ${statusFilter === 'CLOSED' ? 'bg-white dark:bg-stone-700 text-stone-600 dark:text-stone-300 shadow-xs' : 'text-stone-500 dark:text-stone-400'}`}
+          >
+            ปิดบัญชีแล้ว ({loans.filter(l => !l.isActive).length})
+          </button>
+        </div>
       </div>
 
       {/* 4. Loans List */}
@@ -196,7 +242,9 @@ export const LoanManagerView: React.FC<LoanManagerViewProps> = ({
             return (
               <div 
                 key={loan.id}
-                className="bg-white/95 dark:bg-stone-900/90 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-xs overflow-hidden transition-all hover:border-amber-400/80"
+                className={`bg-white/95 dark:bg-stone-900/90 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-xs overflow-hidden transition-all hover:border-amber-400/80 ${
+                  !loan.isActive ? 'opacity-70 dark:opacity-60' : ''
+                }`}
               >
                 {/* Main Card Header */}
                 <div className="p-4 sm:p-5 flex items-center justify-between gap-3">
@@ -205,9 +253,20 @@ export const LoanManagerView: React.FC<LoanManagerViewProps> = ({
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm sm:text-base font-bold text-stone-900 dark:text-stone-100 truncate">
+                        <h3 className={`text-sm sm:text-base font-bold truncate ${
+                          loan.isActive ? 'text-stone-900 dark:text-stone-100' : 'text-stone-500 line-through'
+                        }`}>
                           {loan.title}
                         </h3>
+                        {loan.isActive ? (
+                          <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full">
+                            กำลังผ่อน
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-stone-500 dark:text-stone-400 bg-stone-100 dark:bg-stone-800 px-2 py-0.5 rounded-full">
+                            ปิดบัญชีแล้ว
+                          </span>
+                        )}
                         <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full">
                           {getLoanTypeBadge(loan.loanType)}
                         </span>
@@ -221,6 +280,17 @@ export const LoanManagerView: React.FC<LoanManagerViewProps> = ({
                         <span className="font-semibold text-stone-700 dark:text-stone-300">
                           {loan.subItems.length} ซับย่อย
                         </span>
+                        {(() => {
+                          const paidCount = paymentRecords ? paymentRecords.filter(r => r.loanId === loan.id && r.status === 'PAID').length : 0;
+                          return paidCount > 0 ? (
+                            <>
+                              <span>•</span>
+                              <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                                ชำระแล้ว {paidCount} งวด
+                              </span>
+                            </>
+                          ) : null;
+                        })()}
                       </div>
 
                       <div className="flex items-center gap-4 mt-2 text-xs flex-wrap">
@@ -259,6 +329,18 @@ export const LoanManagerView: React.FC<LoanManagerViewProps> = ({
 
                   {/* Actions & Expand Chevron */}
                   <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleActive(loan)}
+                      className={`p-2 rounded-xl transition-colors ${
+                        loan.isActive 
+                          ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/50' 
+                          : 'text-stone-400 hover:text-stone-600 hover:bg-stone-100 dark:hover:bg-stone-800'
+                      }`}
+                      title={loan.isActive ? 'แตะเพื่อเปลี่ยนสถานะเป็นปิดบัญชีแล้ว' : 'แตะเพื่อเปิดใช้งานสัญญาอีกครั้ง'}
+                    >
+                      <Power size={16} />
+                    </button>
                     <button
                       type="button"
                       onClick={() => onEditLoan(loan)}

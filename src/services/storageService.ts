@@ -468,9 +468,10 @@ export function updateLoanSubItemAmount(loanId: string, subItemId: string, newAm
   const idx = state.loans.findIndex(l => l.id === loanId);
   if (idx < 0) return false;
 
+  const validAmount = Math.max(0, newAmount);
   const targetLoan = state.loans[idx];
   const updatedSubs = targetLoan.subItems.map(s =>
-    s.id === subItemId ? { ...s, amount: Math.max(0, newAmount) } : s
+    s.id === subItemId ? { ...s, amount: validAmount } : s
   );
   const updatedLoans = [...state.loans];
   updatedLoans[idx] = {
@@ -479,6 +480,31 @@ export function updateLoanSubItemAmount(loanId: string, subItemId: string, newAm
     updatedAt: new Date().toISOString(),
   };
 
-  saveLoans(updatedLoans, true);
+  saveLoans(updatedLoans, false);
+
+  // If there's an unpaid payment record for this subItem in current month, sync amountDue
+  let recordUpdated = false;
+  const currentYm = getCurrentYearMonth();
+  const updatedRecords = state.paymentRecords.map(r => {
+    if (r.loanId === loanId && r.subItemId === subItemId && r.yearMonth === currentYm && r.status !== 'PAID') {
+      recordUpdated = true;
+      return { ...r, amountDue: validAmount };
+    }
+    return r;
+  });
+
+  if (recordUpdated) {
+    savePaymentRecords(updatedRecords, false);
+  }
+
+  broadcastStateChange();
   return true;
+}
+
+export function deleteLoanAndRecords(loanId: string): void {
+  const state = loadAppState();
+  const updatedLoans = state.loans.filter(l => l.id !== loanId);
+  const updatedRecords = state.paymentRecords.filter(r => r.loanId !== loanId);
+  saveLoans(updatedLoans, false);
+  savePaymentRecords(updatedRecords, true);
 }

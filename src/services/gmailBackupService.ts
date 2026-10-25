@@ -1,4 +1,4 @@
-import { AppStateData, MonthlyInstallmentTask, CashflowSummary } from '../types/loan';
+import { AppStateData, MonthlyInstallmentTask, CashflowSummary, PortfolioDebtSummary } from '../types/loan';
 import { 
   loadAppState, 
   saveLoans, 
@@ -86,7 +86,7 @@ export function restoreBackupFile(jsonString: string): { success: boolean; messa
     const parsed: ExportBackupPayload = JSON.parse(jsonString);
 
     if (!parsed.data || !Array.isArray(parsed.data.loans) || !parsed.data.loans.every(isValidLoan)) {
-      return { success: false, message: 'รูปแบบไฟล์สำรองข้อมูลไม่ถูกต้อง กรุณาใช้ไฟล์ที่ส่งออกจาก DebtFlow Enterprise' };
+      return { success: false, message: 'รูปแบบไฟล์สำรองข้อมูลไม่ถูกต้อง กรุณาใช้ไฟล์ที่ส่งออกจาก คล่องตัว (KlongTua) หรือ DebtFlow Enterprise' };
     }
 
     const { data } = parsed;
@@ -129,7 +129,7 @@ export async function shareBackupFile(): Promise<boolean> {
     fileName: buildBackupFileName(),
     contents: JSON.stringify(payload, null, 2),
     mimeType: 'application/json',
-    title: 'แชร์ไฟล์สำรอง DebtFlow',
+    title: 'แชร์ไฟล์สำรอง คล่องตัว',
   });
 
   if (shared) updateLastBackupTime();
@@ -141,7 +141,8 @@ export async function shareBackupFile(): Promise<boolean> {
  */
 export async function shareCsvReport(
   tasks: MonthlyInstallmentTask[],
-  summary: CashflowSummary
+  summary: CashflowSummary,
+  portfolioSummary?: PortfolioDebtSummary
 ): Promise<boolean> {
   const headers = ['เจ้าหนี้', 'ชื่อรายการ', 'ซับย่อย', 'ประเภท', 'วันครบกำหนด', 'เวลา', 'ยอดชำระ (บาท)', 'สถานะ', 'วันที่ชำระ'];
   
@@ -168,6 +169,18 @@ export async function shareCsvReport(
     [summary.isSufficient ? 'เงินคงเหลือสุทธิ' : 'ต้องหาเพิ่มอีก', (summary.isSufficient ? summary.surplusAmount : summary.shortfallAmount).toString()],
   ];
 
+  if (portfolioSummary) {
+    summaryRows.push(
+      [],
+      ['สรุปพอร์ตหนี้สินทั้งหมด (Portfolio Debt Summary)'],
+      ['วงเงินกู้ตั้งต้นรวม', portfolioSummary.totalPrincipalAllLoans.toString()],
+      ['หนี้คงเหลือรวมสุทธิ', portfolioSummary.totalRemainingAllLoans.toString()],
+      ['ลดต้นสะสมแล้ว', portfolioSummary.totalPaidOffAllLoans.toString()],
+      ['อัตราปลดหนี้ (%)', `${portfolioSummary.debtPayoffRate.toFixed(1)}%`],
+      ['ภาระผ่อนรวมทุกเดือน', portfolioSummary.monthlyCommitment.toString()]
+    );
+  }
+
   const csvContent = '\uFEFF' + [
     headers.join(','),
     ...rows.map(r => r.join(',')),
@@ -175,10 +188,10 @@ export async function shareCsvReport(
   ].join('\r\n');
 
   return shareFile({
-    fileName: `debtflow_report_${summary.yearMonth}.csv`,
+    fileName: `klongtua_report_${summary.yearMonth}.csv`,
     contents: csvContent,
     mimeType: 'text/csv',
-    title: 'แชร์รายงาน CSV',
+    title: 'แชร์รายงาน CSV คล่องตัว',
   });
 }
 
