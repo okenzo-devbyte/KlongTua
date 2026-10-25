@@ -27,7 +27,7 @@ import {
   calculateRollingProjection,
   calculatePortfolioDebtSummary
 } from './utils/cashflowCalculator';
-import { toggleSubItemPayment, saveWidgetSnapshot, syncPendingWidgetToggles } from './services/widgetBridgeService';
+import { toggleSubItemPayment, saveWidgetSnapshot, syncPendingWidgetToggles, syncWidgetSnapshot } from './services/widgetBridgeService';
 import { checkShouldAutoLock, recordUserActivity } from './services/securityService';
 import { announcePaymentToggle, announceTaskReminder } from './services/thaiVoiceService';
 import { syncScheduledNotifications } from './services/notificationService';
@@ -77,6 +77,7 @@ export function App() {
   });
   const spokenAlertRef = useRef<string | null>(null);
   const lastBackRef = useRef(0);
+  const [isWidgetSyncReady, setIsWidgetSyncReady] = useState<boolean>(false);
 
   // Sync state reactively
   const reloadState = () => {
@@ -254,9 +255,15 @@ export function App() {
     let isDisposed = false;
 
     const runWidgetSync = async () => {
-      const applied = await syncPendingWidgetToggles();
-      if (!isDisposed && applied > 0) {
-        reloadState();
+      try {
+        const applied = await syncPendingWidgetToggles();
+        if (!isDisposed && applied > 0) {
+          reloadState();
+        }
+      } finally {
+        if (!isDisposed) {
+          setIsWidgetSyncReady(true);
+        }
       }
     };
 
@@ -267,11 +274,16 @@ export function App() {
         void runWidgetSync();
       }
     };
+    const handleFocus = () => {
+      void runWidgetSync();
+    };
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       isDisposed = true;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
   }, []);
 
@@ -304,34 +316,11 @@ export function App() {
     });
   }), [notificationTasks, notificationRules, voiceConfig.enabled]);
 
-  // Sync snapshot for Home Screen Widget
+  // Sync snapshot for Home Screen Widget (only after initial widget toggles are reconciled)
   useEffect(() => {
-    saveWidgetSnapshot({
-      updatedAt: new Date().toISOString(),
-      yearMonth: currentRealMonth,
-      totalRemainingDue: currentRealSummary.totalRemaining,
-      availableFunds: currentRealSummary.availableFunds,
-      isSufficient: currentRealSummary.isSufficient,
-      shortfallAmount: currentRealSummary.shortfallAmount,
-      totalRemainingDebt: portfolioSummary.totalRemainingAllLoans,
-      totalPrincipalDebt: portfolioSummary.totalPrincipalAllLoans,
-      tasks: currentRealTasks.map(t => ({
-        id: t.id,
-        loanId: t.loanId,
-        subItemId: t.subItemId,
-        lenderNameTh: t.lender.nameTh,
-        badgeText: t.lender.badgeText,
-        primaryColor: t.lender.primaryColor,
-        loanTitle: t.loanTitle,
-        subTitle: t.subTitle,
-        dueDateFormatted: t.dueDate,
-        dueTime: t.dueTime,
-        amount: t.amount,
-        isPaid: t.status === 'PAID',
-        isOverdue: t.status === 'OVERDUE',
-      })),
-    });
-  }, [currentRealSummary, currentRealTasks, currentRealMonth, portfolioSummary]);
+    if (!isWidgetSyncReady) return;
+    syncWidgetSnapshot(appState, currentRealMonth);
+  }, [appState, currentRealMonth, isWidgetSyncReady]);
 
   // Toast Helpers - Single Floating Pill with 1.5s Auto-Fade
   const addToast = (type: ToastMessage['type'], title: string, message: string) => {

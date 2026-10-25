@@ -2,7 +2,8 @@ import {
   MonthlyInstallmentTask, 
   MonthlyPaymentRecord, 
   LoanAccount,
-  PaymentStatus
+  PaymentStatus,
+  AppStateData
 } from '../types/loan';
 import { 
   loadAppState, 
@@ -10,9 +11,15 @@ import {
   saveAvailableFunds, 
   saveLoans,
   broadcastStateChange,
-  safeStorage 
+  safeStorage,
+  addStateChangeListener 
 } from './storageService';
-import { getMonthlyInstallmentTasks } from '../utils/cashflowCalculator';
+import { 
+  getMonthlyInstallmentTasks, 
+  calculateMonthlySummary, 
+  calculatePortfolioDebtSummary 
+} from '../utils/cashflowCalculator';
+import { format } from 'date-fns';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import confetti from 'canvas-confetti';
 
@@ -25,6 +32,8 @@ export interface WidgetSnapshot {
   shortfallAmount: number;
   totalRemainingDebt?: number;
   totalPrincipalDebt?: number;
+  hasLoans?: boolean;
+  totalLoanCount?: number;
   tasks: Array<{
     id: string;
     loanId: string;
@@ -52,6 +61,7 @@ export interface PendingWidgetToggle {
 interface WidgetBridgeNativePlugin {
   updateSnapshot(options: { snapshot: string }): Promise<void>;
   consumePendingToggles(): Promise<{ toggles: PendingWidgetToggle[] }>;
+  clearSnapshot?(): Promise<void>;
 }
 
 const NativeWidgetBridge = registerPlugin<WidgetBridgeNativePlugin>('WidgetBridge');
@@ -61,7 +71,7 @@ export function saveWidgetSnapshot(snapshot: WidgetSnapshot): void {
     const serialized = JSON.stringify(snapshot);
     safeStorage.setItem(WIDGET_SNAPSHOT_KEY, serialized);
     if (Capacitor.isNativePlatform()) {
-      void NativeWidgetBridge.updateSnapshot({ snapshot: serialized }).catch(() => {
+      void Promise.resolve(NativeWidgetBridge.updateSnapshot({ snapshot: serialized })).catch(() => {
         // Native widget is optional when the bridge is unavailable.
       });
     }
@@ -79,6 +89,80 @@ export function getWidgetSnapshot(): WidgetSnapshot | null {
   }
 }
 
+export function buildWidgetSnapshot(
+  state?: AppStateData,
+  targetYearMonth?: string
+): WidgetSnapshot {
+  const currentAppState = state || loadAppState();
+  const currentMonth = targetYearMonth || format(new Date(), 'yyyy-MM');
+  const monthTasks = getMonthlyInstallmentTasks(
+    currentAppState.loans,
+    currentAppState.paymentRecords,
+    currentMonth
+  );
+  const summary = calculateMonthlySummary(
+    monthTasks,
+    currentAppState.availableFunds,
+    currentMonth
+  );
+  const portfolioSummary = calculatePortfolioDebtSummary(currentAppState.loans);
+
+  return {
+    updatedAt: new Date().toISOString(),
+    yearMonth: currentMonth,
+    totalRemainingDue: summary.totalRemaining,
+    availableFunds: summary.availableFunds,
+    isSufficient: summary.isSufficient,
+    shortfallAmount: summary.shortfallAmount,
+    totalRemainingDebt: portfolioSummary.totalRemainingAllLoans,
+    totalPrincipalDebt: portfolioSummary.totalPrincipalAllLoans,
+    hasLoans: currentAppState.loans.length > 0,
+    totalLoanCount: currentAppState.loans.length,
+    tasks: monthTasks.map(t => ({
+      id: t.id,
+      loanId: t.loanId,
+      subItemId: t.subItemId,
+      lenderNameTh: t.lender.nameTh,
+      badgeText: t.lender.badgeText,
+      primaryColor: t.lender.primaryColor,
+      loanTitle: t.loanTitle,
+      subTitle: t.subTitle,
+      dueDateFormatted: t.dueDate,
+      dueTime: t.dueTime,
+      amount: t.amount,
+      isPaid: t.status === 'PAID',
+      isOverdue: t.status === 'OVERDUE',
+    })),
+  };
+}
+
+export function syncWidgetSnapshot(
+  state?: AppStateData,
+  targetYearMonth?: string
+): WidgetSnapshot {
+  const snapshot = buildWidgetSnapshot(state, targetYearMonth);
+  saveWidgetSnapshot(snapshot);
+  return snapshot;
+}
+
+export function clearWidgetSnapshot(): void {
+  try {
+    safeStorage.removeItem(WIDGET_SNAPSHOT_KEY);
+    if (Capacitor.isNativePlatform()) {
+      void Promise.resolve(NativeWidgetBridge.clearSnapshot?.()).catch(() => {});
+    }
+  } catch (e) {
+    console.error('Failed to clear widget snapshot', e);
+  }
+}
+
+// Keep snapshot continuously synchronized whenever app data changes
+addStateChangeListener(() => {
+  try {
+    syncWidgetSnapshot();
+  } catch {}
+});
+
 /**
  * ฟังก์ชันกดติ๊กชำระเงิน (Check / Uncheck) จากหน้าจอ Widget หรือ To-Do List
  * อัปเดตทั้งสถานะการชำระ, ยอดเงินสดคงเหลือ และยอดเงินต้นแบบเรียลไทม์
@@ -89,21 +173,25 @@ export function toggleSubItemPayment(
     deductFromAvailableFunds?: boolean;
     triggerConfetti?: boolean;
     note?: string;
+    targetStatus?: 'PAID' | 'PENDING' | 'OVERDUE';
   } = {}
 ): { newStatus: 'PAID' | 'PENDING' | 'OVERDUE'; newAvailableFunds: number } {
   const {
     deductFromAvailableFunds = true,
     triggerConfetti = true,
-    note
+    note,
+    targetStatus: explicitTargetStatus,
   } = options;
 
   const appState = loadAppState();
   const { loans, paymentRecords, availableFunds } = appState;
 
   const isCurrentlyPaid = task.status === 'PAID';
-  const targetStatus = isCurrentlyPaid 
-    ? (task.daysRemaining < 0 ? 'OVERDUE' : 'PENDING') 
-    : 'PAID';
+  const targetStatus = explicitTargetStatus
+    ? explicitTargetStatus
+    : isCurrentlyPaid 
+      ? (task.daysRemaining < 0 ? 'OVERDUE' : 'PENDING') 
+      : 'PAID';
 
   let updatedFunds = availableFunds;
   const existingRecordIndex = paymentRecords.findIndex(
@@ -180,7 +268,10 @@ export function toggleSubItemPayment(
 
     // คืนยอดเงินต้นตามยอดที่หักจริงตอนชำระ
     if (targetLoan) {
-      targetLoan.remainingPrincipal = targetLoan.remainingPrincipal + refundedPrincipal;
+      targetLoan.remainingPrincipal = Math.min(
+        targetLoan.totalPrincipal,
+        targetLoan.remainingPrincipal + refundedPrincipal
+      );
       targetLoan.updatedAt = new Date().toISOString();
     }
 
@@ -208,7 +299,19 @@ export function resolveWidgetToggleAction(
   return 'NONE';
 }
 
+let pendingSyncPromise: Promise<number> | null = null;
+
 export async function syncPendingWidgetToggles(): Promise<number> {
+  if (pendingSyncPromise) {
+    return pendingSyncPromise;
+  }
+  pendingSyncPromise = doSyncPendingWidgetToggles().finally(() => {
+    pendingSyncPromise = null;
+  });
+  return pendingSyncPromise;
+}
+
+async function doSyncPendingWidgetToggles(): Promise<number> {
   if (!Capacitor.isNativePlatform()) return 0;
 
   let pending: PendingWidgetToggle[] = [];
@@ -223,6 +326,7 @@ export async function syncPendingWidgetToggles(): Promise<number> {
   const state = loadAppState();
   const snapshot = getWidgetSnapshot();
   const months = new Set<string>();
+  months.add(format(new Date(), 'yyyy-MM'));
 
   for (const toggle of pending) {
     const matchedMonth = /_(\d{4}-\d{2})$/.exec(toggle.taskId);
@@ -244,12 +348,13 @@ export async function syncPendingWidgetToggles(): Promise<number> {
     const action = resolveWidgetToggleAction(task.status, toggle.isPaid);
     if (action === 'NONE') continue;
 
-    toggleSubItemPayment(task, {
+    const result = toggleSubItemPayment(task, {
       deductFromAvailableFunds: true,
       triggerConfetti: action === 'PAY',
       note: 'ชำระผ่าน Android Home Screen Widget',
+      targetStatus: action === 'PAY' ? 'PAID' : (task.daysRemaining < 0 ? 'OVERDUE' : 'PENDING'),
     });
-    tasksById.set(task.id, { ...task, status: action === 'PAY' ? 'PAID' : 'PENDING' });
+    tasksById.set(task.id, { ...task, status: result.newStatus });
     applied++;
   }
 

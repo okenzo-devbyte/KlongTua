@@ -4,4 +4,5 @@
     <string name="title_activity_main">คล่องตัว</string>
     <string name="package_name">com.enterprise.debtflow</string>
     <string name="custom_url_scheme">com.enterprise.debtflow</string>
+    <string name="widget_description">วิดเจ็ตสรุปหนี้สินและงวดชำระประจำเดือน คล่องตัว</string>
 </resources>

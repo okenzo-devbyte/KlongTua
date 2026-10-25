@@ -33,6 +33,7 @@ desktop.ini
 !.vscode/extensions.json
 .idea/
 .superpowers/
+.agents/
 *.suo
 *.ntvs*
 *.njsproj

@@ -81,7 +81,24 @@ export const safeStorage = {
 
 export const STATE_CHANGE_EVENT = 'debtflow_state_changed';
 
+export type StateChangeListener = () => void;
+const stateChangeListeners = new Set<StateChangeListener>();
+
+export function addStateChangeListener(listener: StateChangeListener): () => void {
+  stateChangeListeners.add(listener);
+  return () => {
+    stateChangeListeners.delete(listener);
+  };
+}
+
 export function broadcastStateChange(): void {
+  for (const listener of stateChangeListeners) {
+    try {
+      listener();
+    } catch (e) {
+      console.error('State change listener error', e);
+    }
+  }
   if (typeof window !== 'undefined' && window.dispatchEvent) {
     try {
       window.dispatchEvent(new CustomEvent(STATE_CHANGE_EVENT));

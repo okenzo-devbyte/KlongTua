@@ -59,11 +59,12 @@
         android:textColor="#94A3B8"
         android:textSize="10sp" />
 
-    <View
+    <ImageView
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginBottom="6dp"
-        android:background="#E2E8F0" />
+        android:background="#E2E8F0"
+        android:contentDescription="@null" />
 
     <!-- Tasks Container -->
     <LinearLayout
@@ -331,7 +332,7 @@
         <TextView
             android:id="@+id/tv_widget_empty"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:minHeight="48dp"
             android:gravity="center"
             android:text="ไม่มีรายการค้างชำระในเดือนนี้ 🎉"

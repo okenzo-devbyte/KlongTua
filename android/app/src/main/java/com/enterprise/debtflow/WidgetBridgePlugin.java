@@ -19,22 +19,38 @@ import org.json.JSONObject;
 public class WidgetBridgePlugin extends Plugin {
 
     @PluginMethod
-    public void updateSnapshot(PluginCall call) {
+    public synchronized void updateSnapshot(PluginCall call) {
         String snapshot = call.getString("snapshot");
         if (snapshot == null) {
             call.reject("snapshot is required");
             return;
         }
 
-        prefs().edit()
-            .putString(DebtFlowWidgetProvider.KEY_SNAPSHOT, snapshot)
+        SharedPreferences prefs = prefs();
+        String pendingStr = prefs.getString(DebtFlowWidgetProvider.KEY_PENDING_TOGGLES, "[]");
+        String finalSnapshot = snapshot;
+
+        try {
+            JSONArray pending = new JSONArray(pendingStr);
+            if (pending.length() > 0) {
+                finalSnapshot = DebtFlowWidgetProvider.reapplyPendingToggles(snapshot, pending);
+            }
+        } catch (JSONException ignored) {
+        }
+
+        boolean ok = prefs.edit()
+            .putString(DebtFlowWidgetProvider.KEY_SNAPSHOT, finalSnapshot)
             .commit();
+        if (!ok) {
+            prefs.edit().putString(DebtFlowWidgetProvider.KEY_SNAPSHOT, finalSnapshot).apply();
+        }
+
         DebtFlowWidgetProvider.updateAllWidgets(getContext());
         call.resolve();
     }
 
     @PluginMethod
-    public void consumePendingToggles(PluginCall call) {
+    public synchronized void consumePendingToggles(PluginCall call) {
         SharedPreferences prefs = prefs();
         JSArray toggles = new JSArray();
 
@@ -54,11 +70,30 @@ public class WidgetBridgePlugin extends Plugin {
         } catch (JSONException ignored) {
         }
 
-        prefs.edit().remove(DebtFlowWidgetProvider.KEY_PENDING_TOGGLES).apply();
+        boolean ok = prefs.edit().remove(DebtFlowWidgetProvider.KEY_PENDING_TOGGLES).commit();
+        if (!ok) {
+            prefs.edit().remove(DebtFlowWidgetProvider.KEY_PENDING_TOGGLES).apply();
+        }
 
         JSObject result = new JSObject();
         result.put("toggles", toggles);
         call.resolve(result);
+    }
+
+    @PluginMethod
+    public synchronized void clearSnapshot(PluginCall call) {
+        boolean ok = prefs().edit()
+            .remove(DebtFlowWidgetProvider.KEY_SNAPSHOT)
+            .remove(DebtFlowWidgetProvider.KEY_PENDING_TOGGLES)
+            .commit();
+        if (!ok) {
+            prefs().edit()
+                .remove(DebtFlowWidgetProvider.KEY_SNAPSHOT)
+                .remove(DebtFlowWidgetProvider.KEY_PENDING_TOGGLES)
+                .apply();
+        }
+        DebtFlowWidgetProvider.updateAllWidgets(getContext());
+        call.resolve();
     }
 
     private SharedPreferences prefs() {
