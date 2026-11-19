@@ -47,7 +47,7 @@ export const NotificationToastHub: React.FC<NotificationToastHubProps> = ({
     : toast.title;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex justify-center w-full max-w-lg px-4">
+    <div className="fixed bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 z-[70] pointer-events-none flex justify-center w-full max-w-lg px-4">
       <div
         key={toast.id}
         onClick={() => onDismiss(toast.id)}

@@ -110,94 +110,109 @@ export function getCurrentYearMonth(): string {
   return format(new Date(), 'yyyy-MM');
 }
 
-export function loadAppState(): AppStateData {
+function safeParseJson<T>(raw: string | null, fallback: T, isValid?: (val: unknown) => val is T): T {
+  if (!raw) return fallback;
   try {
-    const rawLoans = safeStorage.getItem(STORAGE_KEYS.LOANS);
-    const rawRecords = safeStorage.getItem(STORAGE_KEYS.RECORDS);
-    const rawFunds = safeStorage.getItem(STORAGE_KEYS.AVAILABLE_FUNDS);
-    const rawRules = safeStorage.getItem(STORAGE_KEYS.NOTIFICATION_RULES);
-    const rawWidget = safeStorage.getItem(STORAGE_KEYS.WIDGET_CONFIG);
-    const rawBackup = safeStorage.getItem(STORAGE_KEYS.BACKUP_META);
-    const rawVoice = safeStorage.getItem(STORAGE_KEYS.VOICE_CONFIG);
-    const rawYm = safeStorage.getItem(STORAGE_KEYS.SELECTED_YM);
-    const rawPencil = safeStorage.getItem(STORAGE_KEYS.PENCIL_CONFIG);
-    const rawTabs = safeStorage.getItem(STORAGE_KEYS.NAV_TABS);
-    const rawSecurity = safeStorage.getItem(STORAGE_KEYS.SECURITY_CONFIG);
-
-    const currentYm = getCurrentYearMonth();
-
-    const loans: LoanAccount[] = rawLoans ? JSON.parse(rawLoans) : [];
-    const paymentRecords: MonthlyPaymentRecord[] = rawRecords ? JSON.parse(rawRecords) : [];
-    const parsedFunds = rawFunds !== null ? parseFloat(rawFunds) : 0;
-    const availableFunds = Number.isFinite(parsedFunds) ? parsedFunds : 0;
-    const notificationRules: NotificationRule[] = rawRules ? JSON.parse(rawRules) : DEFAULT_NOTIFICATION_RULES;
-    const widgetConfig: WidgetConfig = rawWidget ? JSON.parse(rawWidget) : DEFAULT_WIDGET_CONFIG;
-    const parsedBackup = rawBackup ? (JSON.parse(rawBackup) || {}) : {};
-    const backupMeta: GmailBackupMeta = {
-      lastBackupAt: parsedBackup.lastBackupAt,
-      backupFileVersion: parsedBackup.backupFileVersion || '1.0.0',
-      autoBackupOnPaid: parsedBackup.autoBackupOnPaid ?? true,
-    };
-    const voiceConfig: ThaiVoiceConfig = rawVoice 
-      ? { ...DEFAULT_VOICE_CONFIG, ...JSON.parse(rawVoice) } 
-      : DEFAULT_VOICE_CONFIG;
-    const selectedYearMonth = rawYm || currentYm;
-    const pencilConfig: ThaiPencilConfig = rawPencil
-      ? { ...DEFAULT_PENCIL_CONFIG, ...JSON.parse(rawPencil) }
-      : DEFAULT_PENCIL_CONFIG;
-    const navTabs: NavTabItem[] = rawTabs
-      ? JSON.parse(rawTabs)
-      : DEFAULT_NAV_TABS;
-    const securityConfig: SecurityConfig = rawSecurity
-      ? { ...DEFAULT_SECURITY_CONFIG, ...JSON.parse(rawSecurity) }
-      : DEFAULT_SECURITY_CONFIG;
-
-    // First time setup: persist defaults
-    if (!rawLoans) {
-      saveLoans(loans, false);
-      savePaymentRecords(paymentRecords, false);
-      saveAvailableFunds(availableFunds, false);
-      saveNotificationRules(notificationRules, false);
-      saveWidgetConfig(widgetConfig, false);
-      saveBackupMeta(backupMeta, false);
-      saveVoiceConfig(voiceConfig, false);
-      savePencilConfig(pencilConfig, false);
-      saveNavTabs(navTabs, false);
-      saveSecurityConfig(securityConfig, false);
+    const parsed: unknown = JSON.parse(raw);
+    if (isValid) {
+      return isValid(parsed) ? parsed : fallback;
     }
-
-    return {
-      loans,
-      paymentRecords,
-      availableFunds,
-      notificationRules,
-      widgetConfig,
-      backupMeta,
-      voiceConfig,
-      pencilConfig,
-      navTabs,
-      securityConfig,
-      selectedYearMonth,
-    };
-  } catch (e) {
-    console.error('Failed to load app state from localStorage', e);
-    return {
-      loans: [],
-      paymentRecords: [],
-      availableFunds: 0,
-      notificationRules: DEFAULT_NOTIFICATION_RULES,
-      widgetConfig: DEFAULT_WIDGET_CONFIG,
-      backupMeta: {
-        backupFileVersion: '1.0.0',
-        autoBackupOnPaid: true,
-      },
-      voiceConfig: DEFAULT_VOICE_CONFIG,
-      pencilConfig: DEFAULT_PENCIL_CONFIG,
-      navTabs: DEFAULT_NAV_TABS,
-      securityConfig: DEFAULT_SECURITY_CONFIG,
-      selectedYearMonth: getCurrentYearMonth(),
-    };
+    return (parsed as T) ?? fallback;
+  } catch {
+    return fallback;
   }
+}
+
+function isPlainObject(val: unknown): val is Record<string, unknown> {
+  return typeof val === 'object' && val !== null && !Array.isArray(val);
+}
+
+export function loadAppState(): AppStateData {
+  const rawLoans = safeStorage.getItem(STORAGE_KEYS.LOANS);
+  const rawRecords = safeStorage.getItem(STORAGE_KEYS.RECORDS);
+  const rawFunds = safeStorage.getItem(STORAGE_KEYS.AVAILABLE_FUNDS);
+  const rawRules = safeStorage.getItem(STORAGE_KEYS.NOTIFICATION_RULES);
+  const rawWidget = safeStorage.getItem(STORAGE_KEYS.WIDGET_CONFIG);
+  const rawBackup = safeStorage.getItem(STORAGE_KEYS.BACKUP_META);
+  const rawVoice = safeStorage.getItem(STORAGE_KEYS.VOICE_CONFIG);
+  const rawYm = safeStorage.getItem(STORAGE_KEYS.SELECTED_YM);
+  const rawPencil = safeStorage.getItem(STORAGE_KEYS.PENCIL_CONFIG);
+  const rawTabs = safeStorage.getItem(STORAGE_KEYS.NAV_TABS);
+  const rawSecurity = safeStorage.getItem(STORAGE_KEYS.SECURITY_CONFIG);
+
+  const currentYm = getCurrentYearMonth();
+
+  const loans: LoanAccount[] = safeParseJson<LoanAccount[]>(
+    rawLoans,
+    [],
+    (v): v is LoanAccount[] => Array.isArray(v)
+  );
+  const paymentRecords: MonthlyPaymentRecord[] = safeParseJson<MonthlyPaymentRecord[]>(
+    rawRecords,
+    [],
+    (v): v is MonthlyPaymentRecord[] => Array.isArray(v)
+  );
+  const parsedFunds = rawFunds !== null ? parseFloat(rawFunds) : 0;
+  const availableFunds = Number.isFinite(parsedFunds) ? parsedFunds : 0;
+  const notificationRules: NotificationRule[] = safeParseJson<NotificationRule[]>(
+    rawRules,
+    DEFAULT_NOTIFICATION_RULES,
+    (v): v is NotificationRule[] => Array.isArray(v)
+  );
+  const parsedWidget = safeParseJson<Record<string, unknown>>(rawWidget, {}, isPlainObject);
+  const widgetConfig: WidgetConfig = { ...DEFAULT_WIDGET_CONFIG, ...parsedWidget } as WidgetConfig;
+
+  const parsedBackup = safeParseJson<Record<string, unknown>>(rawBackup, {}, isPlainObject);
+  const backupMeta: GmailBackupMeta = {
+    lastBackupAt: typeof parsedBackup.lastBackupAt === 'string' ? parsedBackup.lastBackupAt : undefined,
+    backupFileVersion: typeof parsedBackup.backupFileVersion === 'string' ? parsedBackup.backupFileVersion : '1.0.0',
+    autoBackupOnPaid: typeof parsedBackup.autoBackupOnPaid === 'boolean' ? parsedBackup.autoBackupOnPaid : true,
+  };
+
+  const parsedVoice = safeParseJson<Record<string, unknown>>(rawVoice, {}, isPlainObject);
+  const voiceConfig: ThaiVoiceConfig = { ...DEFAULT_VOICE_CONFIG, ...parsedVoice } as ThaiVoiceConfig;
+
+  const selectedYearMonth = rawYm && /^\d{4}-\d{2}$/.test(rawYm) ? rawYm : currentYm;
+
+  const parsedPencil = safeParseJson<Record<string, unknown>>(rawPencil, {}, isPlainObject);
+  const pencilConfig: ThaiPencilConfig = { ...DEFAULT_PENCIL_CONFIG, ...parsedPencil } as ThaiPencilConfig;
+
+  const navTabs: NavTabItem[] = safeParseJson<NavTabItem[]>(
+    rawTabs,
+    DEFAULT_NAV_TABS,
+    (v): v is NavTabItem[] => Array.isArray(v) && v.length > 0
+  );
+
+  const parsedSecurity = safeParseJson<Record<string, unknown>>(rawSecurity, {}, isPlainObject);
+  const securityConfig: SecurityConfig = { ...DEFAULT_SECURITY_CONFIG, ...parsedSecurity } as SecurityConfig;
+
+  // First time setup: persist defaults
+  if (!rawLoans) {
+    saveLoans(loans, false);
+    savePaymentRecords(paymentRecords, false);
+    saveAvailableFunds(availableFunds, false);
+    saveNotificationRules(notificationRules, false);
+    saveWidgetConfig(widgetConfig, false);
+    saveBackupMeta(backupMeta, false);
+    saveVoiceConfig(voiceConfig, false);
+    savePencilConfig(pencilConfig, false);
+    saveNavTabs(navTabs, false);
+    saveSecurityConfig(securityConfig, false);
+  }
+
+  return {
+    loans,
+    paymentRecords,
+    availableFunds,
+    notificationRules,
+    widgetConfig,
+    backupMeta,
+    voiceConfig,
+    pencilConfig,
+    navTabs,
+    securityConfig,
+    selectedYearMonth,
+  };
 }
 
 export function saveLoans(loans: LoanAccount[], notify: boolean = true): void {

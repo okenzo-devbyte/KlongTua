@@ -47,11 +47,12 @@ export const LoanFormModal: React.FC<LoanFormModalProps> = ({
   const [contractNumber, setContractNumber] = useState<string>(initialLoan?.contractNumber || '');
   const [loanType, setLoanType] = useState<LoanType>(initialLoan?.loanType || 'FLAT_RATE');
   const [totalPrincipal, setTotalPrincipal] = useState<string>(
-    initialLoan?.totalPrincipal ? initialLoan.totalPrincipal.toString() : ''
+    initialLoan?.totalPrincipal !== undefined ? initialLoan.totalPrincipal.toString() : ''
   );
   const [remainingPrincipal, setRemainingPrincipal] = useState<string>(
-    initialLoan?.remainingPrincipal ? initialLoan.remainingPrincipal.toString() : ''
+    initialLoan?.remainingPrincipal !== undefined ? initialLoan.remainingPrincipal.toString() : ''
   );
+  const [isRemainingManual, setIsRemainingManual] = useState<boolean>(Boolean(initialLoan));
   const [interestRate, setInterestRate] = useState<string>(
     initialLoan?.interestRateAnnual !== undefined ? initialLoan.interestRateAnnual.toString() : ''
   );
@@ -292,12 +293,16 @@ export const LoanFormModal: React.FC<LoanFormModalProps> = ({
       return;
     }
 
-    const parsedTotPrincipal = parseFloat(totalPrincipal) || 0;
-    const parsedRemPrincipal = parseFloat(remainingPrincipal) || 0;
-    const effectiveRem = parsedRemPrincipal > 0 ? parsedRemPrincipal : (parsedTotPrincipal > 0 ? parsedTotPrincipal : totalSubVerify);
-    const effectiveTot = parsedTotPrincipal > 0 ? parsedTotPrincipal : effectiveRem;
+    const parsedTotPrincipal = parseFloat(totalPrincipal);
+    const hasExplicitRem = remainingPrincipal.trim() !== '' && Number.isFinite(parseFloat(remainingPrincipal));
+    const parsedRemPrincipal = hasExplicitRem ? Math.max(0, parseFloat(remainingPrincipal)) : NaN;
+    const safeTot = Number.isFinite(parsedTotPrincipal) && parsedTotPrincipal > 0 ? parsedTotPrincipal : 0;
+    const effectiveRem = hasExplicitRem ? parsedRemPrincipal : (safeTot > 0 ? safeTot : totalSubVerify);
+    const effectiveTot = safeTot > 0 ? Math.max(safeTot, effectiveRem) : effectiveRem;
     const parsedInstallments = parseInt(totalInstallments, 10);
 
+    const nowDate = new Date();
+    const localTodayStr = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}-${String(nowDate.getDate()).padStart(2, '0')}`;
     const loanId = initialLoan?.id || `loan-${Date.now()}`;
 
     const newLoan: LoanAccount = {
@@ -309,17 +314,17 @@ export const LoanFormModal: React.FC<LoanFormModalProps> = ({
       loanType,
       totalPrincipal: effectiveTot,
       remainingPrincipal: effectiveRem,
-      interestRateAnnual: parseFloat(interestRate) || 0,
+      interestRateAnnual: Math.max(0, parseFloat(interestRate) || 0),
       totalInstallments: parsedInstallments > 0 ? parsedInstallments : undefined,
-      startDate: initialLoan?.startDate || new Date().toISOString().substring(0, 10),
+      startDate: initialLoan?.startDate || localTodayStr,
       subItems: finalSubs.map(s => ({
         ...s,
         loanId,
-        amount: Number(s.amount) || 0,
-        dueDayOfMonth: Math.min(31, Math.max(1, Number(s.dueDayOfMonth) || 1)),
+        amount: Math.max(0, Number(s.amount) || 0),
+        dueDayOfMonth: Math.min(31, Math.max(1, Math.floor(Number(s.dueDayOfMonth) || 1))),
         dueTime: s.dueTime || '18:00',
       })),
-      isActive: true,
+      isActive: initialLoan ? initialLoan.isActive : true,
       notes: notes.trim() || undefined,
       createdAt: initialLoan?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -530,7 +535,7 @@ export const LoanFormModal: React.FC<LoanFormModalProps> = ({
                         value={totalPrincipal}
                         onChange={e => {
                           setTotalPrincipal(e.target.value);
-                          if (!remainingPrincipal) {
+                          if (!isRemainingManual) {
                             setRemainingPrincipal(e.target.value);
                           }
                         }}

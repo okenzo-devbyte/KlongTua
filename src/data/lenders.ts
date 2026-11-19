@@ -519,9 +519,12 @@ export const DEFAULT_NAV_TABS: NavTabItem[] = [
   { id: 'dashboard', label: 'หน้าแรก & วางแผน', iconName: 'Home', isVisible: true },
   { id: 'todos', label: 'รายการต้องชำระ', iconName: 'CheckSquare', isVisible: true },
   { id: 'loans', label: 'บัญชีหนี้สิน', iconName: 'CreditCard', isVisible: true },
+  { id: 'planner', label: 'วางแผนปลดหนี้', iconName: 'TrendingDown', isVisible: true },
+  { id: 'history', label: 'ประวัติการชำระ', iconName: 'History', isVisible: true },
   { id: 'widget', label: 'วิดเจ็ตหน้าจอ', iconName: 'LayoutGrid', isVisible: true },
   { id: 'notifications', label: 'แจ้งเตือน', iconName: 'Bell', isVisible: true },
   { id: 'backup', label: 'สำรองข้อมูล', iconName: 'Cloud', isVisible: true },
+  { id: 'about', label: 'คู่มือ & PDPA', iconName: 'Info', isVisible: true },
   { id: 'settings', label: 'ตั้งค่าระบบ', iconName: 'Settings', isVisible: true },
 ];
 

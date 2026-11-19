@@ -18,7 +18,7 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'Sarabun', 'system-ui', 'sans-serif'],
+        sans: ['Plus Jakarta Sans', 'Sarabun', 'system-ui', 'sans-serif'],
       }
     },
   },

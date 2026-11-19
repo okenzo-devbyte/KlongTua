@@ -46,19 +46,24 @@ import {
   PortfolioDebtSummary 
 } from './types/loan';
 import { Navbar } from './components/Navbar';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { DashboardView } from './components/DashboardView';
 import { TodoListView } from './components/TodoListView';
-import { WidgetStudioView } from './components/WidgetStudioView';
 import { LoanManagerView } from './components/LoanManagerView';
 import { LoanFormModal } from './components/LoanFormModal';
-import { NotificationCenterView } from './components/NotificationCenterView';
-import { GmailBackupView } from './components/GmailBackupView';
-import { SettingsView } from './components/SettingsView';
 import { ThaiPencilBackdrop } from './components/ThaiPencilBackdrop';
 import { SecurityLockScreen } from './components/SecurityLockScreen';
 import { DueAlertModal } from './components/DueAlertModal';
 import { NotificationToastHub, ToastMessage } from './components/NotificationToastHub';
-import { ExcelDataModal } from './components/ExcelDataModal';
+
+const WidgetStudioView = React.lazy(() => import('./components/WidgetStudioView').then(m => ({ default: m.WidgetStudioView })));
+const NotificationCenterView = React.lazy(() => import('./components/NotificationCenterView').then(m => ({ default: m.NotificationCenterView })));
+const GmailBackupView = React.lazy(() => import('./components/GmailBackupView').then(m => ({ default: m.GmailBackupView })));
+const SettingsView = React.lazy(() => import('./components/SettingsView').then(m => ({ default: m.SettingsView })));
+const ExcelDataModal = React.lazy(() => import('./components/ExcelDataModal').then(m => ({ default: m.ExcelDataModal })));
+const DebtPlannerView = React.lazy(() => import('./components/DebtPlannerView').then(m => ({ default: m.DebtPlannerView })));
+const PaymentHistoryView = React.lazy(() => import('./components/PaymentHistoryView').then(m => ({ default: m.PaymentHistoryView })));
+const AboutHelpView = React.lazy(() => import('./components/AboutHelpView').then(m => ({ default: m.AboutHelpView })));
 
 export function App() {
   const [appState, setAppState] = useState(loadAppState());
@@ -191,24 +196,36 @@ export function App() {
     : summary;
 
   useEffect(() => {
-    const builtInTabs = ['dashboard', 'todos', 'todo', 'loans', 'widget', 'notifications', 'backup', 'settings'];
+    const builtInTabs = ['dashboard', 'todos', 'todo', 'loans', 'planner', 'history', 'widget', 'notifications', 'backup', 'about', 'settings'];
     const isVisibleCustomTab = navTabs.some(tab => tab.isCustom && tab.isVisible && tab.id === currentTab);
     if (!builtInTabs.includes(currentTab) && !isVisibleCustomTab) {
       setCurrentTab('dashboard');
     }
   }, [currentTab, navTabs]);
 
-  // Auto-lock monitor on user activity
+  // Auto-lock monitor on user activity & visibility/background resume
   useEffect(() => {
     const handleActivity = () => {
-      recordUserActivity();
+      if (!isLocked) recordUserActivity();
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        if (!isLocked && checkShouldAutoLock(securityConfig, true)) {
+          setIsLocked(true);
+        }
+      }
     };
 
     window.addEventListener('click', handleActivity);
     window.addEventListener('keydown', handleActivity);
+    window.addEventListener('touchstart', handleActivity, { passive: true });
+    window.addEventListener('pointerdown', handleActivity, { passive: true });
+    window.addEventListener('scroll', handleActivity, { passive: true });
+    document.addEventListener('visibilitychange', handleVisibility);
 
     const interval = setInterval(() => {
-      if (!isLocked && checkShouldAutoLock(securityConfig)) {
+      if (!isLocked && checkShouldAutoLock(securityConfig, false)) {
         setIsLocked(true);
       }
     }, 15000);
@@ -216,12 +233,17 @@ export function App() {
     return () => {
       window.removeEventListener('click', handleActivity);
       window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('touchstart', handleActivity);
+      window.removeEventListener('pointerdown', handleActivity);
+      window.removeEventListener('scroll', handleActivity);
+      document.removeEventListener('visibilitychange', handleVisibility);
       clearInterval(interval);
     };
   }, [isLocked, securityConfig]);
 
-  // Check for urgent due alerts (respecting 1-hour snooze)
+  // Check for urgent due alerts (respecting 1-hour snooze & lock screen)
   useEffect(() => {
+    if (isLocked) return;
     const overdueOrToday = currentRealTasks.find(t => 
       (t.status === 'OVERDUE' || t.dueDate === todayDateString) &&
       !isTaskSnoozed(t.id)
@@ -229,12 +251,12 @@ export function App() {
     if (overdueOrToday && !urgentAlertTask) {
       setUrgentAlertTask(overdueOrToday);
     }
-  }, [currentRealTasks, todayDateString, urgentAlertTask]);
+  }, [currentRealTasks, todayDateString, urgentAlertTask, isLocked]);
 
-  // Announce urgent due reminders with the Thai voice engine
+  // Announce urgent due reminders with the Thai voice engine (suppressed while locked)
   useEffect(() => {
-    if (!urgentAlertTask) {
-      spokenAlertRef.current = null;
+    if (isLocked || !urgentAlertTask) {
+      if (!urgentAlertTask) spokenAlertRef.current = null;
       return;
     }
     if (spokenAlertRef.current === urgentAlertTask.id) return;
@@ -243,12 +265,18 @@ export function App() {
     if (voiceConfig.enabled && voiceConfig.speakOnDueReminder) {
       void announceTaskReminder(urgentAlertTask);
     }
-  }, [urgentAlertTask, voiceConfig.enabled, voiceConfig.speakOnDueReminder]);
+  }, [urgentAlertTask, voiceConfig.enabled, voiceConfig.speakOnDueReminder, isLocked]);
 
-  // Keep native local notifications in sync with tasks and rules
+  // Keep native local notifications in sync with tasks, rules, sound & privacyMode
   useEffect(() => {
-    void syncScheduledNotifications(notificationTasks, notificationRules, new Date(), voiceConfig.enabled);
-  }, [notificationTasks, notificationRules, voiceConfig.enabled]);
+    void syncScheduledNotifications(
+      notificationTasks,
+      notificationRules,
+      new Date(),
+      voiceConfig.enabled,
+      voiceConfig.privacyMode
+    );
+  }, [notificationTasks, notificationRules, voiceConfig.enabled, voiceConfig.privacyMode]);
 
   // Apply toggles performed on the Android home screen widget, then refresh state
   useEffect(() => {
@@ -425,22 +453,33 @@ export function App() {
 
   const hasDemoLoans = useMemo(() => hasDemoData(loans), [loans]);
 
+  // Strict Lock Screen Isolation: ขณะล็อกห้าม mount เนื้อหาหรือ Modal ใด ๆ ทับหน้าจอล็อก
+  if (isLocked) {
+    return (
+      <div className={`min-h-screen flex flex-col font-sans relative ${
+        isDark ? 'bg-[#121212] text-stone-100 theme-pure-dark' : 'bg-[#FBF9F4] text-stone-900 theme-pure-light'
+      }`}>
+        <SecurityLockScreen
+          config={securityConfig}
+          voiceConfig={voiceConfig}
+          onUnlocked={() => {
+            recordUserActivity();
+            setIsLocked(false);
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen flex flex-col font-sans relative transition-colors duration-300 ${
       isDark ? 'bg-[#121212] text-stone-100 theme-pure-dark' : 'bg-[#FBF9F4] text-stone-900 theme-pure-light'
     }`}>
-      {/* ThaiPencil Watermark Backdrop */}
-      <ThaiPencilBackdrop 
-        intensity={pencilConfig.pencilIntensity} 
-        isDark={isDark} 
-      />
-
-      {/* Security Lock Screen */}
-      {isLocked && (
-        <SecurityLockScreen
-          config={securityConfig}
-          voiceConfig={voiceConfig}
-          onUnlocked={() => setIsLocked(false)}
+      {/* ThaiPencil Watermark Backdrop (เคารพ lowSpecMode) */}
+      {!pencilConfig.lowSpecMode && (
+        <ThaiPencilBackdrop
+          intensity={pencilConfig.pencilIntensity}
+          isDark={isDark}
         />
       )}
 
@@ -530,17 +569,6 @@ export function App() {
           />
         )}
 
-        {currentTab === 'widget' && (
-          <WidgetStudioView
-            tasks={tasks}
-            summary={summary}
-            portfolioSummary={portfolioSummary}
-            config={widgetConfig}
-            onToggleTask={handleToggleTask}
-            onUpdateConfig={(cfg) => saveWidgetConfig(cfg)}
-          />
-        )}
-
         {currentTab === 'loans' && (
           <LoanManagerView
             loans={loans}
@@ -555,45 +583,96 @@ export function App() {
           />
         )}
 
-        {currentTab === 'notifications' && (
-          <NotificationCenterView
-            rules={notificationRules}
-            tasks={tasks}
-            voiceConfig={voiceConfig}
-            onUpdateRules={(rules) => saveNotificationRules(rules)}
-            onUpdateVoiceConfig={saveVoiceConfig}
-          />
-        )}
+        <React.Suspense
+          fallback={
+            <div className="py-16 text-center text-xs font-bold text-stone-400 animate-pulse">
+              กำลังโหลดหน้าจอ...
+            </div>
+          }
+        >
+          {currentTab === 'planner' && (
+            <DebtPlannerView
+              loans={loans}
+              onAddNewLoan={() => setEditingLoan(null)}
+            />
+          )}
 
-        {currentTab === 'backup' && (
-          <GmailBackupView
-            backupMeta={backupMeta}
-            tasks={tasks}
-            summary={summary}
-            loans={loans}
-            paymentRecords={paymentRecords}
-            selectedYearMonth={selectedYearMonth}
-            onRefreshState={reloadState}
-            onOpenExcelModal={() => setIsExcelModalOpen(true)}
-          />
-        )}
+          {currentTab === 'history' && (
+            <PaymentHistoryView
+              loans={loans}
+              paymentRecords={paymentRecords}
+            />
+          )}
 
-        {currentTab === 'settings' && (
-          <SettingsView
-            pencilConfig={pencilConfig}
-            voiceConfig={voiceConfig}
-            securityConfig={securityConfig}
-            navTabs={navTabs}
-            onUpdatePencilConfig={savePencilConfig}
-            onUpdateVoiceConfig={saveVoiceConfig}
-            onUpdateSecurityConfig={saveSecurityConfig}
-            onUpdateNavTabs={saveNavTabs}
-            onClearAllData={clearAllData}
-            isDarkTheme={isDark}
-            onOpenExcelModal={() => setIsExcelModalOpen(true)}
-          />
-        )}
+          {currentTab === 'about' && (
+            <AboutHelpView
+              loans={loans}
+              paymentRecords={paymentRecords}
+              onRefreshState={reloadState}
+            />
+          )}
+
+          {currentTab === 'widget' && (
+            <WidgetStudioView
+              tasks={tasks}
+              summary={summary}
+              portfolioSummary={portfolioSummary}
+              config={widgetConfig}
+              onToggleTask={handleToggleTask}
+              onUpdateConfig={(cfg) => saveWidgetConfig(cfg)}
+            />
+          )}
+
+          {currentTab === 'notifications' && (
+            <NotificationCenterView
+              rules={notificationRules}
+              tasks={notificationTasks}
+              voiceConfig={voiceConfig}
+              onUpdateRules={(rules) => saveNotificationRules(rules)}
+              onUpdateVoiceConfig={saveVoiceConfig}
+            />
+          )}
+
+          {currentTab === 'backup' && (
+            <GmailBackupView
+              backupMeta={backupMeta}
+              tasks={tasks}
+              summary={summary}
+              loans={loans}
+              paymentRecords={paymentRecords}
+              selectedYearMonth={selectedYearMonth}
+              onRefreshState={reloadState}
+              onOpenExcelModal={() => setIsExcelModalOpen(true)}
+            />
+          )}
+
+          {currentTab === 'settings' && (
+            <SettingsView
+              pencilConfig={pencilConfig}
+              voiceConfig={voiceConfig}
+              securityConfig={securityConfig}
+              navTabs={navTabs}
+              onUpdatePencilConfig={savePencilConfig}
+              onUpdateVoiceConfig={saveVoiceConfig}
+              onUpdateSecurityConfig={saveSecurityConfig}
+              onUpdateNavTabs={saveNavTabs}
+              onClearAllData={clearAllData}
+              isDarkTheme={isDark}
+              onOpenExcelModal={() => setIsExcelModalOpen(true)}
+            />
+          )}
+        </React.Suspense>
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <MobileBottomNav
+        currentTab={currentTab}
+        onSelectTab={setCurrentTab}
+        onOpenMoreMenu={() => setCurrentTab('settings')}
+        onQuickAddLoan={() => setEditingLoan(null)}
+        overdueCount={summary.overdueCount}
+        remainingCount={summary.pendingCount + summary.overdueCount}
+      />
 
       {/* Add / Edit Loan Modal */}
       {editingLoan !== undefined && (
@@ -604,20 +683,24 @@ export function App() {
         />
       )}
 
-      {/* Excel Import / Export / Sample Data Modal */}
-      <ExcelDataModal
-        isOpen={isExcelModalOpen}
-        onClose={() => setIsExcelModalOpen(false)}
-        loans={loans}
-        tasks={tasks}
-        summary={summary}
-        rollingProjections={rollingProjections}
-        selectedYearMonth={selectedYearMonth}
-        hasSampleData={hasDemoLoans}
-        onImportLoans={handleImportLoans}
-        onLoadSampleData={handleLoadSampleData}
-        onClearSampleData={handleClearSampleData}
-      />
+      {/* Excel Import / Export / Sample Data Modal (Lazy Loaded) */}
+      {isExcelModalOpen && (
+        <React.Suspense fallback={null}>
+          <ExcelDataModal
+            isOpen={isExcelModalOpen}
+            onClose={() => setIsExcelModalOpen(false)}
+            loans={loans}
+            tasks={tasks}
+            summary={summary}
+            rollingProjections={rollingProjections}
+            selectedYearMonth={selectedYearMonth}
+            hasSampleData={hasDemoLoans}
+            onImportLoans={handleImportLoans}
+            onLoadSampleData={handleLoadSampleData}
+            onClearSampleData={handleClearSampleData}
+          />
+        </React.Suspense>
+      )}
     </div>
   );
 }

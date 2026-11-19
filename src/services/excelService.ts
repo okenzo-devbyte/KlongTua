@@ -11,6 +11,7 @@ import {
 import { LENDERS_CATALOG } from '../data/lenders';
 import { getLenderById, getThaiMonthYear, calculatePortfolioDebtSummary } from '../utils/cashflowCalculator';
 import { format } from 'date-fns';
+import { shareBinaryFile } from './native/files';
 
 export interface ParsedExcelImportResult {
   loans: LoanAccount[];
@@ -193,7 +194,13 @@ export function downloadLoanImportTemplate(): void {
   XLSX.utils.book_append_sheet(wb, wsData, 'รายการนำเข้าสินเชื่อ');
   XLSX.utils.book_append_sheet(wb, wsGuide, 'รหัสผู้ให้บริการ');
 
-  XLSX.writeFile(wb, `KlongTua_Template_นำเข้าสินเชื่อ.xlsx`);
+  const base64Data = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' }) as string;
+  void shareBinaryFile({
+    fileName: 'KlongTua_Template_นำเข้าสินเชื่อ.xlsx',
+    base64Data,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    title: 'เทมเพลตนำเข้าสินเชื่อ คล่องตัว',
+  });
 }
 
 function findRowField(row: Record<string, unknown>, keywords: string[], defaultValue: unknown = ''): unknown {
@@ -366,10 +373,10 @@ export function parseExcelImportBuffer(buffer: ArrayBuffer): ParsedExcelImportRe
           contractNumber: rawContract || undefined,
           loanType: resolveLoanTypeFromText(rawLoanType),
           totalPrincipal: totPrincipal,
-          remainingPrincipal: remPrincipal || totPrincipal,
+          remainingPrincipal: Number.isFinite(remPrincipal) ? remPrincipal : totPrincipal,
           interestRateAnnual: interestRate,
-          totalInstallments: totalInstallmentsNum > 0 ? totalInstallmentsNum : undefined,
-          startDate: new Date().toISOString().slice(0, 10),
+          totalInstallments: totalInstallmentsNum > 0 ? Math.round(totalInstallmentsNum) : undefined,
+          startDate: format(new Date(), 'yyyy-MM-dd'),
           subItems: [firstSub],
           isActive: true,
           notes: rawNotes || undefined,
@@ -533,5 +540,11 @@ export function exportFullExcelWorkbook(params: {
   ];
   XLSX.utils.book_append_sheet(wb, wsContracts, 'ทะเบียนสัญญาสินเชื่อ');
 
-  XLSX.writeFile(wb, `KlongTua_รายงานสินเชื่อ_${selectedYearMonth}.xlsx`);
+  const base64Data = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' }) as string;
+  void shareBinaryFile({
+    fileName: `KlongTua_รายงานสินเชื่อ_${selectedYearMonth}.xlsx`,
+    base64Data,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    title: 'รายงานสินเชื่อ คล่องตัว (Excel)',
+  });
 }

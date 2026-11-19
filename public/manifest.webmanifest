@@ -1,0 +1,18 @@
+{
+  "name": "คล่องตัว (KlongTua) - บริหารหนี้สินและสภาพคล่อง",
+  "short_name": "คล่องตัว",
+  "description": "ระบบบริหารจัดการหนี้สิน สินเชื่อ และสภาพคล่องทางการเงินรายเดือนแบบ Offline-First 100%",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF8F5",
+  "theme_color": "#B45309",
+  "lang": "th",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

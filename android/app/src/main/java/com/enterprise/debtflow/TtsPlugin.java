@@ -157,9 +157,19 @@ public class TtsPlugin extends Plugin {
         pendingText = null;
         playChime(chime, volume);
 
+        if (tts == null) {
+            resolvePending(false);
+            return;
+        }
+
+        tts.setSpeechRate(rate);
+        tts.setPitch(pitch);
+        android.os.Bundle params = new android.os.Bundle();
+        params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume);
+
         String utteranceId = UUID.randomUUID().toString();
         currentUtteranceId = utteranceId;
-        int result = tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId);
+        int result = tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, utteranceId);
         if (result == TextToSpeech.ERROR) {
             resolvePending(false);
         }

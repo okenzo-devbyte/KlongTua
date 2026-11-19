@@ -43,33 +43,11 @@ public class BiometricPlugin extends Plugin {
         }
 
         FragmentActivity activity = (FragmentActivity) getActivity();
-        String title = call.getString("title", "ปลดล็อก DebtFlow");
+        String rawTitle = call.getString("title", "ปลดล็อก คล่องตัว");
+        String title = (rawTitle == null || rawTitle.trim().isEmpty()) ? "ปลดล็อก คล่องตัว" : rawTitle;
         String subtitle = call.getString("subtitle", "สแกนลายนิ้วมือหรือใบหน้าเพื่อเข้าใช้งาน");
-        String cancelTitle = call.getString("cancelTitle", "ใช้รหัส PIN");
-
-        Executor executor = ContextCompat.getMainExecutor(getContext());
-        BiometricPrompt prompt = new BiometricPrompt(
-            activity,
-            executor,
-            new BiometricPrompt.AuthenticationCallback() {
-                @Override
-                public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
-                    isAuthenticating = false;
-                    resolveSuccess(call, true);
-                }
-
-                @Override
-                public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
-                    isAuthenticating = false;
-                    resolveSuccess(call, false);
-                }
-
-                @Override
-                public void onAuthenticationFailed() {
-                    // Keep the prompt open so the user can retry.
-                }
-            }
-        );
+        String rawCancel = call.getString("cancelTitle", "ใช้รหัส PIN");
+        String cancelTitle = (rawCancel == null || rawCancel.trim().isEmpty()) ? "ใช้รหัส PIN" : rawCancel;
 
         BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
             .setTitle(title)
@@ -79,7 +57,38 @@ public class BiometricPlugin extends Plugin {
             .build();
 
         isAuthenticating = true;
-        activity.runOnUiThread(() -> prompt.authenticate(promptInfo));
+        // BiometricPrompt MUST be constructed and authenticated on the Main Thread
+        activity.runOnUiThread(() -> {
+            try {
+                Executor executor = ContextCompat.getMainExecutor(activity);
+                BiometricPrompt prompt = new BiometricPrompt(
+                    activity,
+                    executor,
+                    new BiometricPrompt.AuthenticationCallback() {
+                        @Override
+                        public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                            isAuthenticating = false;
+                            resolveSuccess(call, true);
+                        }
+
+                        @Override
+                        public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                            isAuthenticating = false;
+                            resolveSuccess(call, false);
+                        }
+
+                        @Override
+                        public void onAuthenticationFailed() {
+                            // Keep the prompt open so the user can retry.
+                        }
+                    }
+                );
+                prompt.authenticate(promptInfo);
+            } catch (Exception e) {
+                isAuthenticating = false;
+                resolveSuccess(call, false);
+            }
+        });
     }
 
     private void resolveSuccess(PluginCall call, boolean success) {

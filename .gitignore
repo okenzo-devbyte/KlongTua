@@ -44,3 +44,9 @@ desktop.ini
 .env
 .env.*
 !.env.example
+
+# Security Auto-Ignore
+*.pem
+*.sqlite
+*.sqlite3
+*.db

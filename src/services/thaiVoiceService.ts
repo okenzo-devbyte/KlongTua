@@ -168,8 +168,8 @@ export async function playNotificationChime(
   const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
   if (!AudioCtx) return;
 
+  const ctx = new AudioCtx();
   try {
-    const ctx = new AudioCtx();
     const now = ctx.currentTime;
 
     const playTone = (freq: number, startOffset: number, duration: number, type: OscillatorType = 'sine', gainPeak: number = 0.2) => {
@@ -218,6 +218,10 @@ export async function playNotificationChime(
     }
   } catch {
     // Ignore audio context restrictions
+  } finally {
+    try {
+      await ctx.close();
+    } catch {}
   }
 }
 
@@ -306,84 +310,46 @@ export async function speakThaiText(
       ? 'NONE'
       : (options?.chimeOverride ?? config.chimeStyle);
 
+  const safeVolume = Math.min(1.0, Math.max(0.0, config.volume));
+  const safeRate = Math.min(1.5, Math.max(0.6, options?.rate ?? config.speechRate));
+  const safePitch = Math.min(2.0, Math.max(0.5, options?.pitch ?? 1.0));
+
   if (Capacitor.isNativePlatform()) {
     return speakNativeThai(text, {
-      rate: Math.min(1.5, Math.max(0.6, options?.rate ?? config.speechRate)),
-      pitch: Math.min(2.0, Math.max(0.5, options?.pitch ?? 1.0)),
-      volume: Math.min(1.0, Math.max(0.1, config.volume)),
+      rate: safeRate,
+      pitch: safePitch,
+      volume: safeVolume,
       chime: chimeToPlay,
     });
   }
 
-  await playNotificationChime(chimeToPlay, config.volume);
+  await playNotificationChime(chimeToPlay, safeVolume);
 
-  // ลำดับที่ 1: ใช้ Local Thai SpeechSynthesis Voice หากมีในเครื่อง
+  // Offline-first Privacy-Safe Speech: ใช้เฉพาะ Local OS Web SpeechSynthesis (ไม่ส่งข้อมูลหนี้ออกไปเซิร์ฟเวอร์ภายนอก)
   if ('speechSynthesis' in window) {
     const localThaiVoice = findLocalThaiVoice();
-    if (localThaiVoice) {
-      return new Promise<boolean>((resolve) => {
-        try {
-          const utterance = new SpeechSynthesisUtterance(text);
+    return new Promise<boolean>((resolve) => {
+      try {
+        const utterance = new SpeechSynthesisUtterance(text);
+        if (localThaiVoice) {
           utterance.voice = localThaiVoice;
-          utterance.lang = 'th-TH';
-          utterance.rate = Math.min(1.5, Math.max(0.6, options?.rate ?? config.speechRate));
-          utterance.pitch = Math.min(2.0, Math.max(0.5, options?.pitch ?? 1.0));
-          utterance.volume = Math.min(1.0, Math.max(0.1, config.volume));
-
-          utterance.onend = () => resolve(true);
-          utterance.onerror = () => resolve(false);
-
-          window.speechSynthesis.speak(utterance);
-        } catch {
-          resolve(false);
         }
-      });
-    }
-  }
-
-  // ลำดับที่ 2: หากเครื่องไม่มีเสียงภาษาไทยติดตั้งใน OS ให้ใช้ Cloud Thai TTS Audio Stream Fallback
-  // พร้อมสำรองด้วย SpeechSynthesisUtterance(lang='th-TH') กรณีออฟไลน์
-  try {
-    const chunks = splitThaiTextIntoChunks(text, 160);
-    for (const chunk of chunks) {
-      const encoded = encodeURIComponent(chunk);
-      const ttsUrl = `https://translate.googleapis.com/translate_tts?ie=UTF-8&q=${encoded}&tl=th&client=tw-ob`;
-
-      const played = await new Promise<boolean>((resolve) => {
-        const audio = new Audio(ttsUrl);
-        activeAudioElement = audio;
-        audio.volume = Math.min(1.0, Math.max(0.1, config.volume));
-        audio.playbackRate = Math.min(1.5, Math.max(0.6, options?.rate ?? config.speechRate));
-
-        audio.onended = () => {
-          activeAudioElement = null;
-          resolve(true);
-        };
-        audio.onerror = () => {
-          activeAudioElement = null;
-          resolve(false);
-        };
-
-        audio.play().catch(() => {
-          activeAudioElement = null;
-          resolve(false);
-        });
-      });
-
-      // หากออฟไลน์หรือเล่นสตรีมไม่ได้ ให้ใช้ SpeechSynthesisUtterance มาตรฐาน
-      if (!played && 'speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(chunk);
         utterance.lang = 'th-TH';
-        utterance.rate = Math.min(1.5, Math.max(0.6, options?.rate ?? config.speechRate));
-        utterance.pitch = Math.min(2.0, Math.max(0.5, options?.pitch ?? 1.0));
-        utterance.volume = config.volume;
+        utterance.rate = safeRate;
+        utterance.pitch = safePitch;
+        utterance.volume = safeVolume;
+
+        utterance.onend = () => resolve(true);
+        utterance.onerror = () => resolve(false);
+
         window.speechSynthesis.speak(utterance);
+      } catch {
+        resolve(false);
       }
-    }
-    return true;
-  } catch {
-    return false;
+    });
   }
+
+  return false;
 }
 
 /**
@@ -392,7 +358,7 @@ export async function speakThaiText(
 export async function announceTaskReminder(task: MonthlyInstallmentTask, forceSpeak: boolean = false): Promise<string> {
   const config = loadAppState().voiceConfig;
   const script = buildTaskReminderSpeech(task, config);
-  if (config.enabled && (config.speakOnDueReminder || forceSpeak)) {
+  if (forceSpeak || (config.enabled && config.speakOnDueReminder)) {
     const chime = task.status === 'OVERDUE' ? 'URGENT' : config.chimeStyle;
     await speakThaiText(script, { chimeOverride: chime, forceSpeak });
   }

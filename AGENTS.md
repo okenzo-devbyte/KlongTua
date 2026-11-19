@@ -19,7 +19,7 @@
 
 ### Development, Verification & Build Commands
 ```powershell
-# 1. Run Unit & Integration Tests (65 tests across 13 suites)
+# 1. Run Unit & Integration Tests (69 tests across 14 suites)
 npm test -- --run
 
 # 2. Typecheck & Build Production Web Bundle
@@ -50,22 +50,28 @@ todo-loan/
 │   ├── data/
 │   │   └── lenders.ts                  # Thai banks, non-banks, cooperatives, informal lenders & default configs
 │   ├── utils/
-│   │   └── cashflowCalculator.ts       # Cashflow engine, portfolio debt summary, 6-month rolling projection, Thai Buddhist Era dates
+│   │   ├── cashflowCalculator.ts       # Cashflow engine, interest/principal breakdown, portfolio summary, 6-month projection, Thai BE dates
+│   │   └── payoffSimulator.ts          # Avalanche vs Snowball payoff planner & Refinance/Debt Consolidation simulator
 │   ├── services/
-│   │   ├── storageService.ts           # LocalStorage persistence, state change pub/sub, demo data, loan & record cleanup
+│   │   ├── storageService.ts           # Per-key isolated LocalStorage persistence, state pub/sub, demo data, loan & record cleanup
 │   │   ├── widgetBridgeService.ts      # Bi-directional sync between web storage and Android Native Widget SharedPreferences
-│   │   ├── excelService.ts             # Excel (.xlsx) template generator, fuzzy Thai/English importer, 3-sheet workbook exporter
-│   │   ├── gmailBackupService.ts       # JSON full backup/restore and CSV report exporter
-│   │   ├── notificationService.ts      # Native LocalNotifications scheduler with sound toggle support
-│   │   ├── thaiVoiceService.ts         # Web Speech API + Native Android TTS + Web Audio chime synthesizer ("น้องต้นหอม")
-│   │   ├── securityService.ts          # SHA-256 PIN lock, auto-lock timer, and Native Biometric authentication
+│   │   ├── excelService.ts             # Excel (.xlsx) template generator, importer, 3-sheet exporter via native binary share
+│   │   ├── gmailBackupService.ts       # JSON backup/restore (strips pinHash, preserves device lock) & RFC-4180 formula-safe CSV exporter
+│   │   ├── notificationService.ts      # Native LocalNotifications scheduler (sound/silent channels, privacy mode, allowWhileIdle fallback)
+│   │   ├── thaiVoiceService.ts         # Offline-first Web Speech API + Native Android TTS + Web Audio chime synthesizer ("น้องต้นหอม")
+│   │   ├── securityService.ts          # PBKDF2-SHA256 salted PIN lock, brute-force lockout, auto-lock timer, and Native Biometric auth
 │   │   └── native/                     # Capacitor native wrappers (biometric, dialog, files, print, shell, tts)
 │   └── components/
+│       ├── ErrorBoundary.tsx           # Root Thai error boundary with reload & emergency JSON export
+│       ├── MobileBottomNav.tsx         # 5-slot mobile bottom tab bar + Quick-Add FAB with safe-area inset
 │       ├── DashboardView.tsx           # Minimalist KPI bento grid, Portfolio Debt card, interactive drill-down sheets
 │       ├── TodoListView.tsx            # Monthly installment checklist with inline sub-item amount editing
 │       ├── LoanManagerView.tsx         # Loan contract manager with Active/Closed filters, status toggles, and Excel actions
+│       ├── DebtPlannerView.tsx         # Avalanche vs Snowball comparator, extra-payment slider & Refinance simulator
+│       ├── PaymentHistoryView.tsx      # Chronological Payment Ledger with search, month filter & Thai BE timestamps
+│       ├── AboutHelpView.tsx           # FAQ, Offline-first PDPA/Privacy Policy & Data Health Diagnostics (orphan repair)
 │       ├── LoanFormModal.tsx           # Contract creation/edit modal with custom principal/remaining balance & split sub-items
-│       ├── ExcelDataModal.tsx          # 3-tab modal for Excel Import (Merge/Replace), Template download, and Full Export
+│       ├── ExcelDataModal.tsx          # Lazy-loaded 3-tab modal for Excel Import (Merge/Replace), Template download, and Full Export
 │       ├── WidgetStudioView.tsx        # Interactive Android Home Widget preview & configuration (2x2, 4x2, 4x4, Light/Dark/Glass)
 │       ├── HomeWidgetCard.tsx          # In-app widget renderer matching native widget capabilities
 │       ├── PdfReportModal.tsx          # A4 Executive PDF report preview & native print integration
@@ -121,3 +127,8 @@ todo-loan/
 - Official Thai app name: **คล่องตัว** (English subtitle: **KlongTua**).
 - Do not reintroduce legacy `"DebtFlow"` or `"ThaiPencil Edition"` strings in user-facing UI, notifications, PDF headers, or voice announcements. (Note: internal storage keys like `debtflow_loans_v1` and backup filename prefix `debtflow_backup_` are retained for backward compatibility with existing user data and test suites.)
 - Dates displayed to users must use Thai Buddhist Era (`พ.ศ. = ค.ศ. + 543`).
+
+### 4.5 Security, Privacy & Native Stability Guardrails
+- **Strict Lock-Screen Isolation**: When `isLocked === true`, `App.tsx` must render ONLY `<SecurityLockScreen />` (never mount `<Navbar>`, `<main>`, or `<DueAlertModal>` behind/above it, and suppress `announceTaskReminder`).
+- **Offline-First Privacy**: Never send financial debt text or amounts to external TTS endpoints (e.g., `translate.googleapis.com`). Never export `pinHash` or `biometricCredentialId` in JSON backups, and never allow an imported backup to overwrite local `securityConfig`.
+- **Android Native Safety**: `BiometricPrompt` MUST be constructed and authenticated inside `activity.runOnUiThread(...)`. Keep `android:allowBackup="false"`, `android:usesCleartextTraffic="false"`, and narrow `FileProvider` to `Cache/exports/`.

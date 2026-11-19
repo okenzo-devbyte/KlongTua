@@ -107,9 +107,10 @@ describe('Notification Scheduling Engine', () => {
 describe('Gmail & File Backup Service', () => {
   it('generates a valid backup payload with schemaVersion and app identifier', () => {
     const payload = generateBackupPayload();
-    expect(payload.app).toBe('DebtFlow Enterprise');
-    expect(payload.schemaVersion).toBe('1.0.0');
+    expect(payload.app).toBe('KlongTua');
+    expect(payload.schemaVersion).toBe('2.0.0');
     expect(payload.data).toBeDefined();
+    expect(payload.data.securityConfig.pinHash).toBeUndefined();
     expect(Array.isArray(payload.data.loans)).toBe(true);
   });
 
@@ -159,9 +160,8 @@ describe('Gmail & File Backup Service', () => {
     expect(restored.pencilConfig.themeMode).toBe('SYSTEM');
     expect(restored.pencilConfig.pencilIntensity).toBe(12);
     expect(restored.navTabs).toEqual(payload.data.navTabs);
-    expect(restored.securityConfig.pinLength).toBe(6);
-    expect(restored.securityConfig.pinHash).toBe('restored-hash');
-    expect(restored.securityConfig.biometricEnabled).toBe(true);
+    // Security config on device must NOT be overwritten by an imported backup file
+    expect(restored.securityConfig.pinHash).not.toBe('restored-hash');
     expect('lineProfile' in restored).toBe(false);
     expect(restored.backupMeta).not.toHaveProperty('googleEmail');
     expect(restored.selectedYearMonth).toBe('2027-02');

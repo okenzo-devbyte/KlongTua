@@ -31,11 +31,20 @@ export interface ExportBackupPayload {
 
 export function generateBackupPayload(): ExportBackupPayload {
   const state = loadAppState();
+  // ตัดข้อมูลความลับ (pinHash, biometricCredentialId) ออกจากไฟล์สำรองข้อมูลเพื่อความปลอดภัย
+  const sanitizedSecurity = {
+    ...state.securityConfig,
+    pinHash: undefined,
+    biometricCredentialId: undefined,
+  };
   return {
-    app: 'DebtFlow Enterprise',
-    schemaVersion: '1.0.0',
+    app: 'KlongTua',
+    schemaVersion: '2.0.0',
     exportedAt: new Date().toISOString(),
-    data: state,
+    data: {
+      ...state,
+      securityConfig: sanitizedSecurity,
+    },
   };
 }
 
@@ -97,23 +106,25 @@ export function restoreBackupFile(jsonString: string): { success: boolean; messa
     saveLoans(data.loans, false);
     savePaymentRecords(records, false);
     saveAvailableFunds(Number.isFinite(data.availableFunds) ? data.availableFunds : 0, false);
-    if (data.notificationRules) saveNotificationRules(data.notificationRules, false);
-    if (data.widgetConfig) saveWidgetConfig(data.widgetConfig, false);
+    if (Array.isArray(data.notificationRules)) saveNotificationRules(data.notificationRules, false);
+    if (data.widgetConfig && typeof data.widgetConfig === 'object') saveWidgetConfig(data.widgetConfig, false);
     saveVoiceConfig({ ...DEFAULT_VOICE_CONFIG, ...(data.voiceConfig || {}) }, false);
     savePencilConfig({ ...DEFAULT_PENCIL_CONFIG, ...(data.pencilConfig || {}) }, false);
-    saveNavTabs(Array.isArray(data.navTabs) ? data.navTabs : DEFAULT_NAV_TABS, false);
-    saveSecurityConfig({ ...DEFAULT_SECURITY_CONFIG, ...(data.securityConfig || {}) }, false);
-    if (data.selectedYearMonth) saveSelectedYearMonth(data.selectedYearMonth, false);
+    saveNavTabs(Array.isArray(data.navTabs) && data.navTabs.length > 0 ? data.navTabs : DEFAULT_NAV_TABS, false);
+    // คงค่าความปลอดภัย PIN/Biometric เดิมบนเครื่องไว้ ไม่ให้ไฟล์ภายนอกมาปลดล็อกหรือทับรหัสผ่าน
+    if (typeof data.selectedYearMonth === 'string' && /^\d{4}-\d{2}$/.test(data.selectedYearMonth)) {
+      saveSelectedYearMonth(data.selectedYearMonth, false);
+    }
 
     saveBackupMeta({
       lastBackupAt: new Date().toISOString(),
-      backupFileVersion: data.backupMeta?.backupFileVersion || '1.0.0',
+      backupFileVersion: data.backupMeta?.backupFileVersion || '2.0.0',
       autoBackupOnPaid: data.backupMeta?.autoBackupOnPaid ?? true,
     }, true);
 
-    return { 
-      success: true, 
-      message: `กู้คืนข้อมูลสำเร็จ! นำเข้าเงินกู้ ${data.loans.length} รายการ และประวัติการชำระ ${data.paymentRecords?.length || 0} รายการเรียบร้อย` 
+    return {
+      success: true,
+      message: `กู้คืนข้อมูลสำเร็จ! นำเข้าเงินกู้ ${data.loans.length} รายการ และประวัติการชำระ ${records.length} รายการเรียบร้อย`,
     };
   } catch (err: any) {
     return { success: false, message: `เกิดข้อผิดพลาดในการอ่านไฟล์: ${err?.message || err}` };
@@ -136,6 +147,25 @@ export async function shareBackupFile(): Promise<boolean> {
   return shared;
 }
 
+function escapeCsvCell(raw: string | number | undefined | null): string {
+  const str = String(raw ?? '');
+  // ป้องกัน CSV Formula Injection (=, +, -, @, tab, CR)
+  const neutralized = /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
+  return `"${neutralized.replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+}
+
+function formatPaidAtBE(iso?: string): string {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '-';
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const thaiYear = d.getFullYear() + 543;
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${thaiYear} ${hh}:${mm}`;
+}
+
 /**
  * ส่งออกรายงานตารางสรุปหนี้สินเป็น CSV
  */
@@ -147,15 +177,15 @@ export async function shareCsvReport(
   const headers = ['เจ้าหนี้', 'ชื่อรายการ', 'ซับย่อย', 'ประเภท', 'วันครบกำหนด', 'เวลา', 'ยอดชำระ (บาท)', 'สถานะ', 'วันที่ชำระ'];
   
   const rows = tasks.map(t => [
-    `"${t.lender.nameTh}"`,
-    `"${t.loanTitle}"`,
-    `"${t.subTitle}"`,
-    `"${t.loanType}"`,
+    escapeCsvCell(t.lender.nameTh),
+    escapeCsvCell(t.loanTitle),
+    escapeCsvCell(t.subTitle),
+    escapeCsvCell(t.loanType),
     t.dueDate,
     t.dueTime,
     t.amount.toString(),
     t.status === 'PAID' ? 'ชำระแล้ว' : (t.status === 'OVERDUE' ? 'เลยกำหนด' : 'รอชำระ'),
-    t.paidAt ? `"${format(new Date(t.paidAt), 'yyyy-MM-dd HH:mm')}"` : '-',
+    escapeCsvCell(formatPaidAtBE(t.paidAt)),
   ]);
 
   const summaryRows = [
