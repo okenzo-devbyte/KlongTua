@@ -319,9 +319,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <HomeWidgetCard
             tasks={tasks}
             summary={summary}
-            size={widgetConfig.size}
-            theme={widgetConfig.theme}
-            showPaidItems={widgetConfig.showPaidItems}
+            portfolioSummary={portfolioSummary}
+            widgetConfig={widgetConfig}
             onToggleTask={onToggleTask}
           />
         </div>

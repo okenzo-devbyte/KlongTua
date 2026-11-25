@@ -321,4 +321,17 @@ describe('Widget Bridge & Interactive 2-Way Toggling', () => {
     clearWidgetSnapshot();
     expect(getWidgetSnapshot()).toBeNull();
   });
+
+  it('includes flexible WidgetConfig styling and dueDayOfMonth in snapshot', async () => {
+    const { buildWidgetSnapshot } = await import('./widgetBridgeService');
+    const snapshot = buildWidgetSnapshot(undefined, '2026-10');
+    expect(snapshot.config).toBeDefined();
+    expect(snapshot.config?.style).toBe('NOTE_LIST');
+    expect(snapshot.config?.customTitle).toBe('รายจ่ายแต่ละเดือน');
+    expect(snapshot.config?.headerColor).toBe('#7F1D1D');
+    expect(snapshot.config?.backgroundColor).toBe('#000000');
+    expect(snapshot.config?.backgroundOpacity).toBe(92);
+    expect(snapshot.config?.paidDisplay).toBe('STRIKETHROUGH_KEEP');
+    expect(snapshot.tasks[0].dueDayOfMonth).toBe(5);
+  });
 });

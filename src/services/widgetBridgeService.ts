@@ -3,8 +3,10 @@ import {
   MonthlyPaymentRecord, 
   LoanAccount,
   PaymentStatus,
-  AppStateData
+  AppStateData,
+  WidgetConfig
 } from '../types/loan';
+import { DEFAULT_WIDGET_CONFIG } from '../data/lenders';
 import { 
   loadAppState, 
   savePaymentRecords, 
@@ -34,6 +36,8 @@ export interface WidgetSnapshot {
   totalPrincipalDebt?: number;
   hasLoans?: boolean;
   totalLoanCount?: number;
+  privacyMode?: boolean;
+  config?: WidgetConfig;
   tasks: Array<{
     id: string;
     loanId: string;
@@ -44,6 +48,7 @@ export interface WidgetSnapshot {
     loanTitle: string;
     subTitle: string;
     dueDateFormatted: string;
+    dueDayOfMonth?: number;
     dueTime: string;
     amount: number;
     isPaid: boolean;
@@ -118,6 +123,8 @@ export function buildWidgetSnapshot(
     totalPrincipalDebt: portfolioSummary.totalPrincipalAllLoans,
     hasLoans: currentAppState.loans.length > 0,
     totalLoanCount: currentAppState.loans.length,
+    privacyMode: Boolean(currentAppState.voiceConfig?.privacyMode),
+    config: { ...DEFAULT_WIDGET_CONFIG, ...(currentAppState.widgetConfig || {}) },
     tasks: monthTasks.map(t => ({
       id: t.id,
       loanId: t.loanId,
@@ -128,6 +135,7 @@ export function buildWidgetSnapshot(
       loanTitle: t.loanTitle,
       subTitle: t.subTitle,
       dueDateFormatted: t.dueDate,
+      dueDayOfMonth: t.dueDayOfMonth,
       dueTime: t.dueTime,
       amount: t.amount,
       isPaid: t.status === 'PAID',

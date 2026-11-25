@@ -8,9 +8,10 @@
 
 - **Dashboard & Cashflow Engine**: สรุปภาพรวมพอร์ตหนี้สิน ยอดต้องชำระประจำเดือน ยอดคงเหลือ และพยากรณ์กระแสเงินสดล่วงหน้า 6 เดือน
 - **รายการต้องชำระ (Monthly To-Do)**: แบ่งงวดชำระหลายวัน/บิลย่อยในสัญญาเดียว ติ๊กชำระพร้อมตัดเงินต้นและยอดเงินสดคงเหลืออัตโนมัติ
+- **จัดการบัญชีหนี้ & หมุนเงินใช้วงเงินเดิม (Credit Redraw & Cash Rotation)**: ติดตามหนี้คงเหลือเทียบวงเงินตั้งต้น พร้อมปุ่ม **"หมุนเงิน / กดใช้ต่อ"** เพื่อกดเงินที่จ่ายคืนแล้วกลับมาใช้เต็มวงเงินเดิมหรือบางส่วน พร้อมบวกเข้าเงินสดพร้อมใช้อัตโนมัติ
 - **วางแผนปลดหนี้ & จำลองรวมหนี้ (Debt Planner)**: เปรียบเทียบกลยุทธ์ **Avalanche (ปิดดอกเบี้ยสูงก่อน)** vs **Snowball (ปิดยอดเล็กก่อน)** พร้อม Slider เพิ่มเงินโปะต่อเดือน และตัวจำลองการรวมหนี้ (Refinance)
-- **ประวัติการชำระ (Payment Ledger)**: บันทึกประวัติการชำระย้อนหลังทั้งหมด พร้อมค้นหา กรองตามเดือน และแสดงวัน-เวลา พ.ศ.
-- **Native Android Home Widget**: ซิงก์ 2 ทางกับหน้าจอหลัก Android แตะติ๊กชำระได้ทันที
+- **ประวัติการชำระ & ประวัติหมุนเงิน (Ledger)**: บันทึกประวัติการชำระย้อนหลังและประวัติการหมุนเงินทั้งหมด พร้อมค้นหา กรองตามเดือน แสดงวัน-เวลา พ.ศ. และกดยกเลิก (Undo) ได้
+- **Flexible Native Android Home Widget**: วิดเจ็ตหน้าจอหลักสไตล์ NotePlus เลื่อนดูได้ไม่จำกัดรายการ ปรับสีหัวข้อ สีพื้นหลัง ความโปร่งใส ขนาดตัวอักษร แตะขีดฆ่า (Strikethrough) และซิงก์ 2 ทางทันที
 - **นำเข้า/ส่งออกข้อมูลครบวงจร**: รองรับ Excel (`.xlsx`), PDF รายงาน A4, CSV (ป้องกัน Formula Injection) และ JSON Backup/Restore
 - **ความปลอดภัยและความเป็นส่วนตัว (Zero-Trust Offline-First)**:
   - ข้อมูลทั้งหมดจัดเก็บบนอุปกรณ์เท่านั้น (100% On-Device)
@@ -25,7 +26,7 @@
 - **Frontend**: React 18, TypeScript 5, Vite 5, Tailwind CSS 3, Lucide Icons
 - **Typography**: `@fontsource/sarabun` & `@fontsource/plus-jakarta-sans` (Tabular numerals)
 - **Mobile Runtime**: Capacitor 6 (`@capacitor/android`, `@capacitor/local-notifications`, `@capacitor/filesystem`, `@capacitor/share`, `@capacitor/status-bar`, `@capacitor/splash-screen`)
-- **Testing**: Vitest (69 tests across 14 test suites)
+- **Testing**: Vitest (73 tests across 14 test suites)
 
 ---
 
@@ -38,7 +39,7 @@ npm install
 # รันโหมดพัฒนา (Web)
 npm run dev
 
-# รันชุดทดสอบทั้งหมด (69 tests / 14 suites)
+# รันชุดทดสอบทั้งหมด (73 tests / 14 suites)
 npm test -- --run
 
 # ตรวจสอบ TypeScript และสร้าง Production Web Bundle

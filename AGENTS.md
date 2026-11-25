@@ -19,7 +19,7 @@
 
 ### Development, Verification & Build Commands
 ```powershell
-# 1. Run Unit & Integration Tests (69 tests across 14 suites)
+# 1. Run Unit & Integration Tests (73 tests across 14 suites)
 npm test -- --run
 
 # 2. Typecheck & Build Production Web Bundle
@@ -53,10 +53,10 @@ todo-loan/
 │   │   ├── cashflowCalculator.ts       # Cashflow engine, interest/principal breakdown, portfolio summary, 6-month projection, Thai BE dates
 │   │   └── payoffSimulator.ts          # Avalanche vs Snowball payoff planner & Refinance/Debt Consolidation simulator
 │   ├── services/
-│   │   ├── storageService.ts           # Per-key isolated LocalStorage persistence, state pub/sub, demo data, loan & record cleanup
-│   │   ├── widgetBridgeService.ts      # Bi-directional sync between web storage and Android Native Widget SharedPreferences
+│   │   ├── storageService.ts           # Per-key isolated LocalStorage persistence, state pub/sub, demo data, credit redraw/revert, orphan cleanup
+│   │   ├── widgetBridgeService.ts      # Bi-directional sync between web storage and Android Native Widget SharedPreferences (incl. WidgetConfig)
 │   │   ├── excelService.ts             # Excel (.xlsx) template generator, importer, 3-sheet exporter via native binary share
-│   │   ├── gmailBackupService.ts       # JSON backup/restore (strips pinHash, preserves device lock) & RFC-4180 formula-safe CSV exporter
+│   │   ├── gmailBackupService.ts       # JSON backup/restore (strips pinHash, preserves device lock, supports drawdowns) & RFC-4180 CSV exporter
 │   │   ├── notificationService.ts      # Native LocalNotifications scheduler (sound/silent channels, privacy mode, allowWhileIdle fallback)
 │   │   ├── thaiVoiceService.ts         # Offline-first Web Speech API + Native Android TTS + Web Audio chime synthesizer ("น้องต้นหอม")
 │   │   ├── securityService.ts          # PBKDF2-SHA256 salted PIN lock, brute-force lockout, auto-lock timer, and Native Biometric auth
@@ -66,14 +66,15 @@ todo-loan/
 │       ├── MobileBottomNav.tsx         # 5-slot mobile bottom tab bar + Quick-Add FAB with safe-area inset
 │       ├── DashboardView.tsx           # Minimalist KPI bento grid, Portfolio Debt card, interactive drill-down sheets
 │       ├── TodoListView.tsx            # Monthly installment checklist with inline sub-item amount editing
-│       ├── LoanManagerView.tsx         # Loan contract manager with Active/Closed filters, status toggles, and Excel actions
+│       ├── LoanManagerView.tsx         # Loan contract manager with Active/Closed filters, Credit Redraw trigger, status toggles & Excel
+│       ├── CreditRedrawModal.tsx       # Modal to redraw available credit (FULL_RESET / PARTIAL) & optionally top up availableFunds
 │       ├── DebtPlannerView.tsx         # Avalanche vs Snowball comparator, extra-payment slider & Refinance simulator
-│       ├── PaymentHistoryView.tsx      # Chronological Payment Ledger with search, month filter & Thai BE timestamps
+│       ├── PaymentHistoryView.tsx      # Chronological Payment Ledger & Credit Drawdown Ledger with Undo support
 │       ├── AboutHelpView.tsx           # FAQ, Offline-first PDPA/Privacy Policy & Data Health Diagnostics (orphan repair)
 │       ├── LoanFormModal.tsx           # Contract creation/edit modal with custom principal/remaining balance & split sub-items
 │       ├── ExcelDataModal.tsx          # Lazy-loaded 3-tab modal for Excel Import (Merge/Replace), Template download, and Full Export
-│       ├── WidgetStudioView.tsx        # Interactive Android Home Widget preview & configuration (2x2, 4x2, 4x4, Light/Dark/Glass)
-│       ├── HomeWidgetCard.tsx          # In-app widget renderer matching native widget capabilities
+│       ├── WidgetStudioView.tsx        # Flexible Widget Studio (NotePlus checklist & Card presets, colors, opacity, live wallpaper preview)
+│       ├── HomeWidgetCard.tsx          # In-app widget renderer supporting NOTE_LIST (strikethrough) & CARD_DASHBOARD modes
 │       ├── PdfReportModal.tsx          # A4 Executive PDF report preview & native print integration
 │       ├── NotificationCenterView.tsx  # Notification rules, sound toggle, and mascot voice settings
 │       ├── GmailBackupView.tsx         # Backup/restore JSON, CSV export, and sample data management
@@ -90,12 +91,16 @@ todo-loan/
         │   ├── PrintPlugin.java                    # Native Android PrintManager A4 document adapter
         │   ├── SystemBarsPlugin.java               # Edge-to-edge status/navigation bar styling
         │   └── widget/
-        │       └── DebtFlowWidgetProvider.java     # Native AppWidgetProvider with 1-tap payment toggle & Thai fallbacks
+        │       ├── DebtFlowWidgetProvider.java     # Native AppWidgetProvider with dynamic color/opacity, filter toggle & 2-way sync
+        │       └── DebtFlowWidgetService.java      # RemoteViewsService for unlimited scrollable NotePlus checklist & strikethrough
         └── res/
-            ├── layout/widget_debtflow.xml          # RemoteViews-compliant widget layout (no raw <View> tags)
+            ├── layout/widget_debtflow.xml          # RemoteViews-compliant widget layout (ListView + dynamic header/background)
+            ├── layout/widget_note_row.xml          # RemoteViews-compliant scrollable note item row with strikethrough support
+            ├── drawable/widget_bg_shape.xml        # Tintable rounded widget background (dynamic color + alpha opacity)
+            ├── drawable/widget_header_shape.xml    # Tintable top-rounded widget header bar
             ├── drawable/widget_background_clean.xml
             ├── drawable/widget_task_row_bg.xml     # RemoteViews-compliant <selector> row background
-            └── xml/widget_debtflow_info.xml        # AppWidget metadata with dynamic resize support
+            └── xml/widget_debtflow_info.xml        # AppWidget metadata with 2x2+ dynamic resize support
 ```
 
 ---
@@ -121,7 +126,8 @@ todo-loan/
 ### 4.3 Portfolio Debt & Principal Tracking
 - Every `LoanAccount` tracks both `totalPrincipal` (ยอดหนี้/วงเงินกู้ตั้งต้น) and `remainingPrincipal` (ยอดหนี้คงเหลือปัจจุบัน).
 - When a user marks an installment as `PAID` (either in-app or via the Android widget), `remainingPrincipal` and `availableFunds` are automatically deducted; unmarking (`PENDING` / `OVERDUE`) refunds the amount back up to `totalPrincipal`.
-- Deleting a loan must always call `deleteLoanAndRecords(loanId)` to remove orphaned `MonthlyPaymentRecord` entries.
+- Users can also redraw repaid credit (`redrawLoanCredit` via `CreditRedrawModal.tsx`) in `FULL_RESET` (resetting `remainingPrincipal` back to `totalPrincipal`) or `PARTIAL` mode, optionally adding the cash to `availableFunds`, with full Undo support via `revertLoanDrawdown()`.
+- Deleting a loan must always call `deleteLoanAndRecords(loanId)` to remove orphaned `MonthlyPaymentRecord` and `CreditDrawdownRecord` entries.
 
 ### 4.4 Branding & Localization
 - Official Thai app name: **คล่องตัว** (English subtitle: **KlongTua**).

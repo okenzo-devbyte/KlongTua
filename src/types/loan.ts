@@ -140,10 +140,25 @@ export interface NotificationRule {
 
 export type WidgetTheme = 'LIGHT' | 'DARK' | 'GLASS';
 export type WidgetSize = '2x2' | '4x2' | '4x4';
+export type WidgetStyle = 'NOTE_LIST' | 'CARD_DASHBOARD';
+export type WidgetFontSize = 'SM' | 'MD' | 'LG';
+export type WidgetPaidDisplay = 'STRIKETHROUGH_KEEP' | 'STRIKETHROUGH_BOTTOM' | 'HIDE';
+export type WidgetMarkerStyle = 'BULLET' | 'CHECKBOX';
 
 export interface WidgetConfig {
   size: WidgetSize;
   theme: WidgetTheme;
+  style?: WidgetStyle;
+  customTitle?: string;
+  headerColor?: string;
+  backgroundColor?: string;
+  backgroundOpacity?: number;
+  textColor?: string;
+  fontSize?: WidgetFontSize;
+  markerStyle?: WidgetMarkerStyle;
+  paidDisplay?: WidgetPaidDisplay;
+  showHeaderSummary?: boolean;
+  hideAmounts?: boolean;
   showPaidItems: boolean;
   showAvailableFunds: boolean;
   pinnedToTop: boolean;
@@ -226,9 +241,25 @@ export interface SecurityConfig {
   autoLockTimeoutMinutes: number; // 0 = ทันที, 1, 5, 15, -1 = ปิด
 }
 
+export type CreditDrawdownMode = 'FULL_RESET' | 'PARTIAL';
+
+export interface CreditDrawdownRecord {
+  id: string;
+  loanId: string;
+  loanTitle: string;
+  amountDrawn: number;
+  previousRemaining: number;
+  newRemaining: number;
+  addedToAvailableFunds: boolean;
+  mode: CreditDrawdownMode;
+  note?: string;
+  drawnAt: string;
+}
+
 export interface AppStateData {
   loans: LoanAccount[];
   paymentRecords: MonthlyPaymentRecord[];
+  drawdownRecords?: CreditDrawdownRecord[];
   availableFunds: number;
   notificationRules: NotificationRule[];
   widgetConfig: WidgetConfig;

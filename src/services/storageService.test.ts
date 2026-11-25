@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   clearAllData,
+  deleteLoanAndRecords,
   hasDemoData,
   loadAppState,
   loadDemoData,
+  redrawLoanCredit,
   removeDemoData,
+  revertLoanDrawdown,
   safeStorage,
   saveAvailableFunds,
   saveLoans,
@@ -141,5 +144,73 @@ describe('removeDemoData', () => {
     const afterState = loadAppState();
     const kbankLoan = afterState.loans.find(l => l.id === 'loan-kbank-split');
     expect(kbankLoan?.subItems[0].amount).toBe(4250);
+  });
+});
+
+describe('credit redraw and cash rotation', () => {
+  it('resets remainingPrincipal back to totalPrincipal on FULL_RESET and adds to availableFunds', () => {
+    const loan = makeLoan('loan-revolving', 'บัตรกดเงินสด');
+    loan.totalPrincipal = 30000;
+    loan.remainingPrincipal = 24000;
+    saveLoans([loan]);
+    saveAvailableFunds(5000);
+
+    const res = redrawLoanCredit('loan-revolving', {
+      mode: 'FULL_RESET',
+      addToAvailableFunds: true,
+      note: 'กดหมุนใช้จ่าย',
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.newRemaining).toBe(30000);
+    expect(res.newAvailableFunds).toBe(11000);
+
+    const state = loadAppState();
+    expect(state.loans[0].remainingPrincipal).toBe(30000);
+    expect(state.availableFunds).toBe(11000);
+    expect(state.drawdownRecords).toHaveLength(1);
+    expect(state.drawdownRecords?.[0].amountDrawn).toBe(6000);
+    expect(state.drawdownRecords?.[0].mode).toBe('FULL_RESET');
+  });
+
+  it('supports PARTIAL redraw without adding to availableFunds and reverts cleanly', () => {
+    const loan = makeLoan('loan-partial', 'SPayLater');
+    loan.totalPrincipal = 10000;
+    loan.remainingPrincipal = 4000;
+    saveLoans([loan]);
+    saveAvailableFunds(2000);
+
+    const drawRes = redrawLoanCredit('loan-partial', {
+      mode: 'PARTIAL',
+      customAmount: 2500,
+      addToAvailableFunds: false,
+    });
+
+    expect(drawRes.success).toBe(true);
+    expect(drawRes.newRemaining).toBe(6500);
+    expect(drawRes.newAvailableFunds).toBe(2000);
+
+    const recordId = drawRes.record!.id;
+    const revertRes = revertLoanDrawdown(recordId);
+    expect(revertRes.success).toBe(true);
+
+    const afterRevert = loadAppState();
+    expect(afterRevert.loans[0].remainingPrincipal).toBe(4000);
+    expect(afterRevert.availableFunds).toBe(2000);
+    expect(afterRevert.drawdownRecords).toHaveLength(0);
+  });
+
+  it('removes drawdown records when deleteLoanAndRecords is called', () => {
+    const loan = makeLoan('loan-del', 'สัญญาชั่วคราว');
+    loan.totalPrincipal = 10000;
+    loan.remainingPrincipal = 5000;
+    saveLoans([loan]);
+
+    redrawLoanCredit('loan-del', { mode: 'FULL_RESET', addToAvailableFunds: true });
+    expect(loadAppState().drawdownRecords).toHaveLength(1);
+
+    deleteLoanAndRecords('loan-del');
+    expect(loadAppState().loans).toHaveLength(0);
+    expect(loadAppState().drawdownRecords).toHaveLength(0);
   });
 });

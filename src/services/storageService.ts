@@ -8,7 +8,9 @@ import {
   ThaiPencilConfig,
   NavTabItem,
   SecurityConfig,
-  AppStateData 
+  AppStateData,
+  CreditDrawdownRecord,
+  CreditDrawdownMode
 } from '../types/loan';
 import { 
   DEFAULT_NOTIFICATION_RULES, 
@@ -23,6 +25,7 @@ import { format } from 'date-fns';
 const STORAGE_KEYS = {
   LOANS: 'debtflow_loans_v1',
   RECORDS: 'debtflow_records_v1',
+  DRAWDOWNS: 'debtflow_drawdowns_v1',
   AVAILABLE_FUNDS: 'debtflow_available_funds_v1',
   NOTIFICATION_RULES: 'debtflow_notif_rules_v1',
   WIDGET_CONFIG: 'debtflow_widget_config_v1',
@@ -130,6 +133,7 @@ function isPlainObject(val: unknown): val is Record<string, unknown> {
 export function loadAppState(): AppStateData {
   const rawLoans = safeStorage.getItem(STORAGE_KEYS.LOANS);
   const rawRecords = safeStorage.getItem(STORAGE_KEYS.RECORDS);
+  const rawDrawdowns = safeStorage.getItem(STORAGE_KEYS.DRAWDOWNS);
   const rawFunds = safeStorage.getItem(STORAGE_KEYS.AVAILABLE_FUNDS);
   const rawRules = safeStorage.getItem(STORAGE_KEYS.NOTIFICATION_RULES);
   const rawWidget = safeStorage.getItem(STORAGE_KEYS.WIDGET_CONFIG);
@@ -151,6 +155,11 @@ export function loadAppState(): AppStateData {
     rawRecords,
     [],
     (v): v is MonthlyPaymentRecord[] => Array.isArray(v)
+  );
+  const drawdownRecords: CreditDrawdownRecord[] = safeParseJson<CreditDrawdownRecord[]>(
+    rawDrawdowns,
+    [],
+    (v): v is CreditDrawdownRecord[] => Array.isArray(v)
   );
   const parsedFunds = rawFunds !== null ? parseFloat(rawFunds) : 0;
   const availableFunds = Number.isFinite(parsedFunds) ? parsedFunds : 0;
@@ -203,6 +212,7 @@ export function loadAppState(): AppStateData {
   return {
     loans,
     paymentRecords,
+    drawdownRecords,
     availableFunds,
     notificationRules,
     widgetConfig,
@@ -222,6 +232,11 @@ export function saveLoans(loans: LoanAccount[], notify: boolean = true): void {
 
 export function savePaymentRecords(records: MonthlyPaymentRecord[], notify: boolean = true): void {
   safeStorage.setItem(STORAGE_KEYS.RECORDS, JSON.stringify(records));
+  if (notify) broadcastStateChange();
+}
+
+export function saveDrawdownRecords(records: CreditDrawdownRecord[], notify: boolean = true): void {
+  safeStorage.setItem(STORAGE_KEYS.DRAWDOWNS, JSON.stringify(records));
   if (notify) broadcastStateChange();
 }
 
@@ -537,6 +552,126 @@ export function deleteLoanAndRecords(loanId: string): void {
   const state = loadAppState();
   const updatedLoans = state.loans.filter(l => l.id !== loanId);
   const updatedRecords = state.paymentRecords.filter(r => r.loanId !== loanId);
+  const updatedDrawdowns = (state.drawdownRecords || []).filter(d => d.loanId !== loanId);
   saveLoans(updatedLoans, false);
-  savePaymentRecords(updatedRecords, true);
+  savePaymentRecords(updatedRecords, false);
+  saveDrawdownRecords(updatedDrawdowns, true);
+}
+
+export function redrawLoanCredit(
+  loanId: string,
+  options: {
+    mode: CreditDrawdownMode;
+    customAmount?: number;
+    addToAvailableFunds?: boolean;
+    note?: string;
+  }
+): {
+  success: boolean;
+  message: string;
+  record?: CreditDrawdownRecord;
+  newRemaining?: number;
+  newAvailableFunds?: number;
+} {
+  const state = loadAppState();
+  const idx = state.loans.findIndex(l => l.id === loanId);
+  if (idx < 0) {
+    return { success: false, message: 'ไม่พบสัญญาเงินกู้ที่ต้องการหมุนเงิน' };
+  }
+
+  const targetLoan = state.loans[idx];
+  const totalPrincipal = Number.isFinite(targetLoan.totalPrincipal) ? targetLoan.totalPrincipal : 0;
+  const previousRemaining = Number.isFinite(targetLoan.remainingPrincipal) ? Math.max(0, targetLoan.remainingPrincipal) : 0;
+  const availableCredit = Math.max(0, Math.round((totalPrincipal - previousRemaining) * 100) / 100);
+
+  if (availableCredit <= 0) {
+    return { success: false, message: 'วงเงินเต็มอยู่แล้ว ไม่มีวงเงินว่างให้กดเพิ่ม' };
+  }
+
+  const rawRequested = options.mode === 'FULL_RESET'
+    ? availableCredit
+    : Math.min(availableCredit, Math.round(Math.max(0, Number(options.customAmount) || 0) * 100) / 100);
+
+  if (!Number.isFinite(rawRequested) || rawRequested <= 0) {
+    return { success: false, message: 'กรุณาระบุยอดเงินที่ต้องการกดให้มากกว่า 0 บาท' };
+  }
+
+  const newRemaining = options.mode === 'FULL_RESET'
+    ? totalPrincipal
+    : Math.min(totalPrincipal, Math.round((previousRemaining + rawRequested) * 100) / 100);
+
+  const nowIso = new Date().toISOString();
+  const updatedLoans = [...state.loans];
+  updatedLoans[idx] = {
+    ...targetLoan,
+    remainingPrincipal: newRemaining,
+    isActive: true,
+    updatedAt: nowIso,
+  };
+
+  const addFunds = options.addToAvailableFunds !== false;
+  const newAvailableFunds = addFunds
+    ? Math.round((state.availableFunds + rawRequested) * 100) / 100
+    : state.availableFunds;
+
+  const record: CreditDrawdownRecord = {
+    id: `drawdown-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    loanId: targetLoan.id,
+    loanTitle: targetLoan.title,
+    amountDrawn: rawRequested,
+    previousRemaining,
+    newRemaining,
+    addedToAvailableFunds: addFunds,
+    mode: options.mode,
+    note: options.note?.trim() || undefined,
+    drawnAt: nowIso,
+  };
+
+  saveLoans(updatedLoans, false);
+  if (addFunds) {
+    saveAvailableFunds(newAvailableFunds, false);
+  }
+  saveDrawdownRecords([record, ...(state.drawdownRecords || [])], true);
+
+  return {
+    success: true,
+    message: `หมุนเงิน ${targetLoan.title} สำเร็จ! ยอดหนี้คงเหลือเป็น ฿${newRemaining.toLocaleString('en-US')}`,
+    record,
+    newRemaining,
+    newAvailableFunds,
+  };
+}
+
+export function revertLoanDrawdown(drawdownId: string): {
+  success: boolean;
+  message: string;
+} {
+  const state = loadAppState();
+  const drawdowns = state.drawdownRecords || [];
+  const targetRecord = drawdowns.find(d => d.id === drawdownId);
+  if (!targetRecord) {
+    return { success: false, message: 'ไม่พบรายการหมุนเงินที่ต้องการยกเลิก' };
+  }
+
+  const updatedLoans = state.loans.map(loan => {
+    if (loan.id !== targetRecord.loanId) return loan;
+    const revertedRemaining = Math.max(0, Math.round((loan.remainingPrincipal - targetRecord.amountDrawn) * 100) / 100);
+    return {
+      ...loan,
+      remainingPrincipal: revertedRemaining,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  saveLoans(updatedLoans, false);
+  if (targetRecord.addedToAvailableFunds) {
+    const revertedFunds = Math.max(0, Math.round((state.availableFunds - targetRecord.amountDrawn) * 100) / 100);
+    saveAvailableFunds(revertedFunds, false);
+  }
+  saveDrawdownRecords(drawdowns.filter(d => d.id !== drawdownId), true);
+
+  return {
+    success: true,
+    message: `ยกเลิกรายการหมุนเงิน "${targetRecord.loanTitle}" เรียบร้อยแล้ว`,
+  };
 }

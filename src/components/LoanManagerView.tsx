@@ -19,7 +19,8 @@ import {
   Sparkles,
   BarChart3,
   Power,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 
 interface LoanManagerViewProps {
@@ -30,6 +31,7 @@ interface LoanManagerViewProps {
   onEditLoan: (loan: LoanAccount) => void;
   onSaveLoan?: (loan: LoanAccount) => void;
   onDeleteLoan: (loanId: string) => void;
+  onRedrawLoan?: (loan: LoanAccount) => void;
   onOpenExcelModal?: () => void;
   onLoadSampleData?: () => void;
 }
@@ -42,6 +44,7 @@ export const LoanManagerView: React.FC<LoanManagerViewProps> = ({
   onEditLoan,
   onSaveLoan,
   onDeleteLoan,
+  onRedrawLoan,
   onOpenExcelModal,
   onLoadSampleData,
 }) => {
@@ -312,7 +315,28 @@ export const LoanManagerView: React.FC<LoanManagerViewProps> = ({
                             ฿{formatCurrency(monthlyTotal)}
                           </span>
                         </div>
+                        {loan.totalPrincipal > remaining && (
+                          <div>
+                            <span className="text-emerald-600 dark:text-emerald-400 text-[10px] font-bold block">วงเงินกดใช้ได้</span>
+                            <span className="font-extrabold font-num text-emerald-600 dark:text-emerald-400">
+                              ฿{formatCurrency(loan.totalPrincipal - remaining)}
+                            </span>
+                          </div>
+                        )}
                       </div>
+
+                      {loan.totalPrincipal > remaining && onRedrawLoan && (
+                        <div className="mt-2.5">
+                          <button
+                            type="button"
+                            onClick={() => onRedrawLoan(loan)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-extrabold transition-colors active:scale-95"
+                          >
+                            <RefreshCw size={13} />
+                            <span>หมุนเงิน / กดใช้ต่อ</span>
+                          </button>
+                        </div>
+                      )}
 
                       {/* Payoff Progress Bar */}
                       <div className="mt-3 max-w-sm">

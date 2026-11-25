@@ -18,6 +18,8 @@ import {
   clearTaskSnooze,
   isTaskSnoozed,
   deleteLoanAndRecords,
+  redrawLoanCredit,
+  revertLoanDrawdown,
   STATE_CHANGE_EVENT 
 } from './services/storageService';
 import { format, addMonths } from 'date-fns';
@@ -43,7 +45,8 @@ import {
   ThaiVoiceConfig, 
   SecurityConfig, 
   NavTabItem,
-  PortfolioDebtSummary 
+  PortfolioDebtSummary,
+  CreditDrawdownMode 
 } from './types/loan';
 import { Navbar } from './components/Navbar';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -51,6 +54,7 @@ import { DashboardView } from './components/DashboardView';
 import { TodoListView } from './components/TodoListView';
 import { LoanManagerView } from './components/LoanManagerView';
 import { LoanFormModal } from './components/LoanFormModal';
+import { CreditRedrawModal } from './components/CreditRedrawModal';
 import { ThaiPencilBackdrop } from './components/ThaiPencilBackdrop';
 import { SecurityLockScreen } from './components/SecurityLockScreen';
 import { DueAlertModal } from './components/DueAlertModal';
@@ -69,6 +73,7 @@ export function App() {
   const [appState, setAppState] = useState(loadAppState());
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [editingLoan, setEditingLoan] = useState<LoanAccount | null | undefined>(undefined);
+  const [redrawingLoan, setRedrawingLoan] = useState<LoanAccount | null>(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState<boolean>(false);
   const [isLocked, setIsLocked] = useState<boolean>(() => {
     const initial = loadAppState();
@@ -98,6 +103,7 @@ export function App() {
   const {
     loans,
     paymentRecords,
+    drawdownRecords = [],
     availableFunds,
     notificationRules,
     widgetConfig,
@@ -420,6 +426,33 @@ export function App() {
     addToast('SUCCESS', 'บันทึกสัญญาแล้ว', loan.title);
   };
 
+  const handleRedrawLoan = (
+    loanId: string,
+    options: {
+      mode: CreditDrawdownMode;
+      customAmount?: number;
+      addToAvailableFunds: boolean;
+      note?: string;
+    }
+  ) => {
+    const res = redrawLoanCredit(loanId, options);
+    setRedrawingLoan(null);
+    if (res.success) {
+      addToast('SUCCESS', 'หมุนเงินสำเร็จ', res.message);
+    } else {
+      addToast('WARNING', 'ไม่สามารถหมุนเงินได้', res.message);
+    }
+  };
+
+  const handleRevertDrawdown = (drawdownId: string) => {
+    const res = revertLoanDrawdown(drawdownId);
+    if (res.success) {
+      addToast('INFO', 'ยกเลิกรายการหมุนเงินแล้ว', res.message);
+    } else {
+      addToast('WARNING', 'ไม่สามารถยกเลิกได้', res.message);
+    }
+  };
+
   const handleDeleteLoan = (loanId: string) => {
     deleteLoanAndRecords(loanId);
     addToast('INFO', 'ลบสัญญาแล้ว', 'นำออกจากระบบเรียบร้อย');
@@ -578,6 +611,7 @@ export function App() {
             onEditLoan={(loan) => setEditingLoan(loan)}
             onSaveLoan={handleSaveLoan}
             onDeleteLoan={handleDeleteLoan}
+            onRedrawLoan={(loan) => setRedrawingLoan(loan)}
             onOpenExcelModal={() => setIsExcelModalOpen(true)}
             onLoadSampleData={handleLoadSampleData}
           />
@@ -601,6 +635,8 @@ export function App() {
             <PaymentHistoryView
               loans={loans}
               paymentRecords={paymentRecords}
+              drawdownRecords={drawdownRecords}
+              onRevertDrawdown={handleRevertDrawdown}
             />
           )}
 
@@ -682,6 +718,14 @@ export function App() {
           onClose={() => setEditingLoan(undefined)}
         />
       )}
+
+      {/* Credit Redraw / Cash Rotation Modal */}
+      <CreditRedrawModal
+        loan={redrawingLoan}
+        availableFunds={availableFunds}
+        onClose={() => setRedrawingLoan(null)}
+        onConfirm={handleRedrawLoan}
+      />
 
       {/* Excel Import / Export / Sample Data Modal (Lazy Loaded) */}
       {isExcelModalOpen && (

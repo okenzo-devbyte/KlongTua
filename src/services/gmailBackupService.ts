@@ -3,6 +3,7 @@ import {
   loadAppState, 
   saveLoans, 
   savePaymentRecords, 
+  saveDrawdownRecords,
   saveAvailableFunds, 
   saveNotificationRules, 
   saveWidgetConfig, 
@@ -105,6 +106,9 @@ export function restoreBackupFile(jsonString: string): { success: boolean; messa
 
     saveLoans(data.loans, false);
     savePaymentRecords(records, false);
+    if (Array.isArray(data.drawdownRecords)) {
+      saveDrawdownRecords(data.drawdownRecords, false);
+    }
     saveAvailableFunds(Number.isFinite(data.availableFunds) ? data.availableFunds : 0, false);
     if (Array.isArray(data.notificationRules)) saveNotificationRules(data.notificationRules, false);
     if (data.widgetConfig && typeof data.widgetConfig === 'object') saveWidgetConfig(data.widgetConfig, false);
